@@ -26,8 +26,8 @@ filesets:
   #---------------------------------------
   files_hdl:
     files     :
-      - src/stack_pkg.vhd
-      - src/stack.vhd
+      - hdl/stack_pkg.vhd
+      - hdl/stack.vhd
     file_type : vhdlSource
     depend    :
       - ">=asylum:component:ram_1r1w:1.0.0"
