@@ -6,7 +6,7 @@
 -- Author     : mrosiere
 -- Company    : 
 -- Created    : 2016-11-11
--- Last update: 2017-03-14
+-- Last update: 2025-09-06
 -- Platform   : 
 -- Standard   : VHDL'93/02
 -------------------------------------------------------------------------------
@@ -21,11 +21,11 @@
 -------------------------------------------------------------------------------
 
 library ieee;
-use ieee.std_logic_1164.all;
-use ieee.numeric_std.all;
+use     ieee.std_logic_1164.all;
+use     ieee.numeric_std.all;
 library work;
-use work.math_pkg.all;
-use work.ram_1r1w_pkg.all;
+use     work.math_pkg.all;
+use     work.ram_pkg.all;
 
 entity stack is
   -- =====[ Parameters ]==========================
