@@ -14,9 +14,10 @@ CAPI=2:
 # Revisions  :
 # Date        Version  Author   Description
 # 2021-10-26  1.0.0    mrosiere Created
+# 2025-09-06  1.0.1    mrosiere Update deps
 #-----------------------------------------------------------------------------
 
-name : asylum:component:stack:1.0.0
+name : asylum:component:stack:1.0.1
 description : Stack
 
 filesets:
@@ -30,7 +31,7 @@ filesets:
       - hdl/stack.vhd
     file_type : vhdlSource
     depend    :
-      - ">=asylum:component:ram_1r1w:1.0.0"
+      - ">=asylum:component:ram:1.0.0"
       
   #---------------------------------------
   # Testbench Files
