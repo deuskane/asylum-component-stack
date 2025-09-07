@@ -28,8 +28,8 @@ use ieee.numeric_std.all;
 --use ieee.numeric_bit.all;
 --use ieee.std_logic_arith.all;
 
-library work;
-use work.stack_pkg.all;
+library asylum;
+use asylum.stack_pkg.all;
 
 entity tb_stack is
 

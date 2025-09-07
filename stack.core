@@ -26,11 +26,12 @@ filesets:
   # Source Files
   #---------------------------------------
   files_hdl:
-    files     :
+    files        :
       - hdl/stack_pkg.vhd
       - hdl/stack.vhd
-    file_type : vhdlSource
-    depend    :
+    file_type    : vhdlSource
+    logical_name : asylum
+    depend       :
       - ">=asylum:component:ram:1.0.0"
       
   #---------------------------------------
@@ -53,7 +54,7 @@ targets:
     toplevel        : stack
     default_tool    : ghdl
 
-  sim:
+  sim_basic:
     << : *default
     description     : Simulation of all cases
     filesets_append :
