@@ -6,7 +6,7 @@
 -- Author     : mrosiere
 -- Company    : 
 -- Created    : 2016-11-11
--- Last update: 2025-09-06
+-- Last update: 2025-11-06
 -- Platform   : 
 -- Standard   : VHDL'93/02
 -------------------------------------------------------------------------------
@@ -155,6 +155,7 @@ architecture rtl of stack is
     generic map
     (WIDTH    => WIDTH
     ,DEPTH    => DEPTH
+    ,SYNC_READ=> false 
     )
     port map
     (clk_i    => clk_i
