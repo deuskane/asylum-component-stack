@@ -1,3 +1,5 @@
+[![CI](https://github.com/deuskane/asylum-component-stack/actions/workflows/ci.yml/badge.svg)](https://github.com/deuskane/asylum-component-stack/actions/workflows/ci.yml)
+
 **Table of Contents**
 - **Introduction**: short overview of this repository
 - **HDL Modules**: detailed description of modules in `hdl/`
