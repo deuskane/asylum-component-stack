@@ -71,7 +71,7 @@ This IP is a small hardware stack (last in, first out), typically used as a retu
 
 ## Block Diagram
 
-Diagram: [doc/stack.drawio](doc/stack.drawio) (open with diagrams.net or the VS Code Draw.io extension).
+![Block diagram](doc/stack-Overview.png)
 
 - The flag / handshake logic derives `full` (MSB of `nb_elt_r`) and `empty` (`nb_elt_r = 0`), drives `push_ack_o` and `pop_val_o` and computes the `push` and `pop` events.
 - The `transition` process updates `nb_elt_r` (`log2(DEPTH)+1` bits) and `ptr_last_r` (`log2(DEPTH)` bits) on push only (+1) or pop only (-1); push and pop together leave them unchanged.
