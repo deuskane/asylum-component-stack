@@ -1,3 +1,4 @@
-default   : Default Target
-sim_basic : Simulation of all cases
+default       : Default Target
+sim_basic     : Simulation of all cases (OVERWRITE = 0)
+sim_overwrite : Simulation of all cases (OVERWRITE = 1)
 
