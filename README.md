@@ -169,6 +169,8 @@ This IP has no software-visible registers.
 | `default` | `stack` | HDL fileset only (not a simulation) |
 | `sim_basic` | `tb_stack` | Simulation of all cases, `WIDTH=8`, `DEPTH=8`, `OVERWRITE=0` (GHDL, UVVM) |
 | `sim_overwrite` | `tb_stack` | Simulation of all cases, `WIDTH=16`, `DEPTH=4`, `OVERWRITE=1` (GHDL, UVVM) |
+| `lint_ghdl` | `asylum.stack` | Lint: GHDL `-Wall` analysis and elaboration (empty simulation) |
+| `lint_ghdl_synth` | `asylum.stack` | Synthesis check: `lint_ghdl`, then `ghdl --synth -Wall` of 4 configurations (`syn/ghdl/ghdl_synth.sh`: defaults, the 2 `sim_*` configurations, `asylum-processor-OpenBlaze8` call stack `WIDTH=10`, `DEPTH=32`, `OVERWRITE=1`), fails on a synthesis error or an inferred latch |
 
 The `.core` parameters `WIDTH` (int, 8), `DEPTH` (int, 8) and `OVERWRITE` (int, 0) are the testbench generics set by the `sim_*` targets.
 
@@ -180,6 +182,8 @@ The default tool is GHDL (`mk/defs.mk`: `TOOL ?= ghdl`, `TARGET ?= sim_basic`).
 make help                 # variables, rules and target list (mk/targets.txt)
 make sim_basic            # run one target (log in log/)
 make nonreg_sim           # run every sim_* target
+make lint_ghdl            # GHDL -Wall lint (make nonreg_lint: every lint_* target)
+make lint_ghdl_synth      # GHDL -Wall lint + ghdl --synth -Wall check
 make clean                # remove build/
 ```
 
@@ -196,7 +200,7 @@ fusesoc --cores-root . run --build-root build --target sim_basic asylum:componen
 
 ## Synthesis
 
-No dedicated synthesis target. The HDL of the `default` target is synthesizable: `stack.vhd` contains no simulation-only construct (no `textio`, file access, `report` or `wait`); the `ram_1r1w` it instantiates only has a `translate_off` check that `DEPTH` is a power of 2. The storage is `WIDTH x DEPTH` bits of RAM with an asynchronous read port (distributed / LUT RAM or registers), plus a `log2(DEPTH)+1`-bit counter and a `log2(DEPTH)`-bit pointer.
+No vendor synthesis target (`lint_ghdl_synth` checks the RTL with `ghdl --synth`, see [Targets](#targets)). The HDL of the `default` target is synthesizable: `stack.vhd` contains no simulation-only construct (no `textio`, file access, `report` or `wait`); the `ram_1r1w` it instantiates only has a `translate_off` check that `DEPTH` is a power of 2. The storage is `WIDTH x DEPTH` bits of RAM with an asynchronous read port (distributed / LUT RAM or registers), plus a `log2(DEPTH)+1`-bit counter and a `log2(DEPTH)`-bit pointer.
 
 ## Design Notes
 
@@ -229,6 +233,8 @@ asylum-component-stack/
 │   └── stack.vhd
 ├── sim/
 │   └── tb_stack.vhd        # UVVM testbench
+├── syn/ghdl/
+│   └── ghdl_synth.sh       # ghdl --synth check (post_run hook of lint_ghdl_synth)
 └── .github/workflows/ci.yml  # CI (sim_basic, sim_overwrite)
 ```
 

@@ -1,4 +1,6 @@
-default       : Default Target
-sim_basic     : Simulation of all cases (OVERWRITE = 0)
-sim_overwrite : Simulation of all cases (OVERWRITE = 1)
+default         : Default Target
+lint_ghdl       : Lint with GHDL (-Wall analysis and elaboration of stack)
+lint_ghdl_synth : Synthesis check, ghdl --synth -Wall of stack (4 configurations)
+sim_basic       : Simulation of all cases (OVERWRITE = 0)
+sim_overwrite   : Simulation of all cases (OVERWRITE = 1)
 
