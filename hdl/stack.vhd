@@ -32,7 +32,10 @@ entity stack is
   generic (
      WIDTH     : natural := 32;
      DEPTH     : natural := 4;
-     OVERWRITE : natural := 0
+     OVERWRITE : natural := 0;
+     CYCLIC_PTR: boolean := false  -- true : purely cyclic pointer (KCPSM3) :
+                                     -- a pop on an empty stack still moves the
+                                     -- pointer (requires OVERWRITE /= 0)
      );
   -- =====[ Interfaces ]==========================
   port (
@@ -81,6 +84,13 @@ architecture rtl of stack is
   pop_data_o   <= ram_read_data;
 
   -----------------------------------------------------------------------------
+  -- Parameters checks
+  -----------------------------------------------------------------------------
+  assert (not CYCLIC_PTR) or (OVERWRITE /= 0)
+    report "stack : CYCLIC_PTR = true requires OVERWRITE /= 0"
+    severity failure;
+
+  -----------------------------------------------------------------------------
   -- Flags
   -----------------------------------------------------------------------------
   full         <= '1' when (nb_elt_r(log2(DEPTH)) = '1') else '0';
@@ -90,7 +100,11 @@ architecture rtl of stack is
   -- Commands
   -----------------------------------------------------------------------------
   pop_val      <= not empty;
-  pop          <= pop_val and pop_ack_i;
+  -- CYCLIC_PTR : a pop on an empty stack (without simultaneous push) moves
+  -- the pointer anyway, the counter saturates at 0 (KCPSM3 RETURN on an
+  -- empty stack : the next RETURN reads the word below)
+  pop          <= (pop_ack_i and (pop_val or not push)) when CYCLIC_PTR else
+                  (pop_val and pop_ack_i);
   
   gen_OVERWRITE_n: if (OVERWRITE = 0)
   generate
@@ -132,7 +146,10 @@ architecture rtl of stack is
           -- pop only
           elsif  (pop ='1')
           then
-            nb_elt_r   <= nb_elt_r  - 1;
+            if (empty = '0')
+            then
+              nb_elt_r <= nb_elt_r  - 1;
+            end if;
             ptr_last_r <= ptr_last_r- 1;
           end if;
         end if;

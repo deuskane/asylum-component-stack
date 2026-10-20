@@ -29,7 +29,10 @@ package stack_pkg is
     generic (
       WIDTH     : natural := 32;
       DEPTH     : natural := 4;
-      OVERWRITE : natural := 0
+      OVERWRITE : natural := 0;
+      CYCLIC_PTR: boolean := false  -- true : purely cyclic pointer (KCPSM3) :
+                                      -- a pop on an empty stack still moves the
+                                      -- pointer (requires OVERWRITE /= 0)
       );
     -- =====[ Interfaces ]==========================
     port (
