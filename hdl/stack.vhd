@@ -10,7 +10,9 @@
 -- Platform   : 
 -- Standard   : VHDL'93/02
 -------------------------------------------------------------------------------
--- Description: 
+-- Description: LIFO stack on a ram_1r1w (asynchronous read)
+--              arstn_i is an asynchronous reset, active low (it was
+--              sampled on the rising edge of clk_i up to stack 1.0.2)
 -------------------------------------------------------------------------------
 -- Copyright (c) 2016 
 -------------------------------------------------------------------------------
@@ -38,7 +40,7 @@ entity stack is
   port (
     clk_i       : in  std_logic;
     cke_i       : in  std_logic;
-    arstn_i      : in  std_logic;
+    arstn_i      : in  std_logic; -- Asynchronous reset, active low
     -- stack push
     push_val_i  : in  std_logic;
     push_ack_o  : out std_logic;
@@ -107,15 +109,14 @@ architecture rtl of stack is
   -----------------------------------------------------------------------------
   -- Transition
   -----------------------------------------------------------------------------
-  transition: process (clk_i)
+  transition: process (clk_i, arstn_i)
   begin  -- process transition
-    if (clk_i'event and clk_i = '1')
+    if (arstn_i = '0')
+    then
+      nb_elt_r      <= (others => '0');
+      ptr_last_r    <= (others => '0');
+    elsif (clk_i'event and clk_i = '1')
     then  -- rising clk_i edge
-      if (arstn_i = '0')
-      then
-        nb_elt_r      <= (others => '0');
-        ptr_last_r    <= (others => '0');
-      else
         if (cke_i = '1')
         then
           -- push and pop
@@ -136,7 +137,6 @@ architecture rtl of stack is
             ptr_last_r <= ptr_last_r- 1;
           end if;
         end if;
-      end if;
     end if;
   end process transition;
   
