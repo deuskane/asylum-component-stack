@@ -33,7 +33,8 @@ entity tb_stack is
   generic (
     WIDTH     : natural := 8;
     DEPTH     : natural := 8;  -- Power of 2
-    OVERWRITE : natural := 0
+    OVERWRITE : natural := 0;
+    CYCLIC_PTR: boolean := false  -- Test 8 : KCPSM3 cyclic pointer (needs OVERWRITE /= 0)
     );
 end tb_stack;
 
@@ -64,6 +65,7 @@ begin
     (WIDTH     => WIDTH
     ,DEPTH     => DEPTH
     ,OVERWRITE => OVERWRITE
+    ,CYCLIC_PTR=> CYCLIC_PTR
      )
     port map
     (clk_i       => clk_i
@@ -97,6 +99,12 @@ begin
     variable v_pop       : boolean;
     variable v_cke       : boolean;
     variable v_start     : natural;
+    -- Test 8 model (CYCLIC_PTR) : RAM image, written flags, pointer, level
+    variable v_cmem      : t_stk;
+    variable v_wr        : boolean_vector(0 to DEPTH-1);
+    variable v_ptr       : integer;
+    variable v_top       : integer;
+    variable v_cnb       : natural;
 
     function to_sl(b : boolean) return std_logic is
     begin
@@ -322,11 +330,61 @@ begin
           when others => v_push := random(1, 100) <= 50; v_pop := random(1, 100) <= 50;
         end case;
         v_cke := random(1, 100) <= 85;
+        -- CYCLIC_PTR : no pop on an empty stack here (the model can not follow
+        -- the pointer underflow, see Test 8)
+        if CYCLIC_PTR and v_nb = 0 then
+          v_pop := v_pop and v_push;
+        end if;
         cycle(v_push, v_pop, "T7 phase " & to_string(phase) & " cycle " & to_string(i), cke => v_cke);
       end loop;
     end loop;
     drain("T7");
     idle;
+
+    ----------------------------------------------
+    -- Test 8 (CYCLIC_PTR only) : pop on an empty stack moves the pointer
+    -- (KCPSM3) : the next pop reads the word below. Circular model of the RAM.
+    ----------------------------------------------
+    if CYCLIC_PTR then
+      log(ID_LOG_HDR, "Test 8: Cyclic pointer: DEPTH+1 pushes, DEPTH+3 pops, 2 pushes, pops", C_SCOPE);
+      reset("T8");
+      v_ptr := 0;
+      v_cnb := 0;
+      v_wr  := (others => false);
+      for i in 1 to 2*DEPTH+10 loop
+        if    i <= DEPTH+1   then v_push := true;  v_pop := false;
+        elsif i <= 2*DEPTH+4 then v_push := false; v_pop := true;
+        elsif i <= 2*DEPTH+6 then v_push := true;  v_pop := false;
+        else                      v_push := false; v_pop := true;
+        end if;
+        wait until falling_edge(clk_i);
+        push_val_i  <= to_sl(v_push);
+        push_data_i <= data(v_next_data);
+        pop_ack_i   <= to_sl(v_pop);
+        wait for C_CLK_PERIOD/4;
+        v_top := (v_ptr - 1) mod DEPTH;
+        check_value(pop_val_o, to_sl(v_cnb /= 0), ERROR, "T8 cycle " & to_string(i) & ": pop_val_o", C_SCOPE);
+        v_nb_checks := v_nb_checks + 1;
+        if v_wr(v_top) then
+          check_value(pop_data_o, v_cmem(v_top), ERROR, "T8 cycle " & to_string(i) & ": pop_data_o = word below the pointer", C_SCOPE);
+          v_nb_checks := v_nb_checks + 1;
+        end if;
+        if v_push then
+          v_cmem(v_ptr) := data(v_next_data);
+          v_wr(v_ptr)   := true;
+          v_ptr         := (v_ptr + 1) mod DEPTH;
+          v_cnb         := minimum(v_cnb + 1, DEPTH);
+          v_next_data   := v_next_data + 1;
+        elsif v_pop then
+          v_ptr         := (v_ptr - 1) mod DEPTH;  -- also on an empty stack
+          v_cnb         := maximum(v_cnb - 1, 0);
+        end if;
+        wait until rising_edge(clk_i);
+      end loop;
+      idle;
+      reset("T8 end");
+      idle;
+    end if;
 
     enable_log_msg(ID_POS_ACK);
     log(ID_SEQUENCER, to_string(v_nb_checks) & " checks done, " & to_string(v_next_data-1) & " words pushed", C_SCOPE);

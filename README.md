@@ -89,6 +89,7 @@ Top-level entity: **`stack`** ([hdl/stack.vhd](hdl/stack.vhd)), library `asylum`
 | `WIDTH` | natural | `32` | Word width in bits |
 | `DEPTH` | natural | `4` | Number of words; must be a power of 2 (`full` is the MSB of a `log2(DEPTH)+1`-bit counter) |
 | `OVERWRITE` | natural | `0` | `0`: push refused when full; `/= 0`: push always accepted, the oldest word is overwritten when full |
+| `CYCLIC_PTR` | boolean | `false` | `true`: purely cyclic pointer as the KCPSM3 call stack: a pop on an empty stack (without push) still decrements `ptr_last_r`, so the next pop reads the word below; requires `OVERWRITE /= 0` (assertion failure otherwise). `false`: a pop on an empty stack is ignored |
 
 ### Ports
 
@@ -162,6 +163,8 @@ This IP has no software-visible registers.
 |------|-----|-------------|
 | [sim/tb_stack.vhd](sim/tb_stack.vhd) | `stack` (generics `WIDTH`, `DEPTH`, `OVERWRITE` of the testbench, defaults 8 / 8 / 0) | Self-checking UVVM testbench. The handshakes and `cke_i` / `arstn_i` are driven cycle by cycle and every cycle `pop_val_o`, `push_ack_o` and `pop_data_o` (top of stack) are compared with a reference model. Tests: 1) flags after reset; 2) push up to full, pop in LIFO order; 3) `DEPTH+3` pushes on a full stack: refused with `OVERWRITE = 0`, accepted with `OVERWRITE /= 0` (the stack keeps the last `DEPTH` words); 4) simultaneous push and pop at every level 0 to `DEPTH` (top word replaced; push only when empty; pop only when full with `OVERWRITE = 0`); 5) `cke_i = 0` freezes the stack (push, pop, push+pop, half full and full); 6) synchronous reset `arstn_i`: no effect before the clock edge, stack empty after it, also with `cke_i = 0` and a push+pop request; 7) 1200 cycles of random push / pop / `cke_i`. `report_alert_counters(FINAL)` gives the verdict (4053 checks with `sim_basic`, 3686 with `sim_overwrite`) |
 
+The testbench generic `CYCLIC_PTR` (default false, `true` in `sim_cyclic`) is passed to the DUT; with it, test 7 does not pop an empty stack and a test 8 runs `DEPTH+1` pushes, `DEPTH+3` pops (2 on an empty stack), then pushes and pops, checked against a circular model of the RAM (word below the pointer, `pop_val_o`).
+
 ### Targets
 
 | Target | Toplevel | Description |
@@ -169,6 +172,7 @@ This IP has no software-visible registers.
 | `default` | `stack` | HDL fileset only (not a simulation) |
 | `sim_basic` | `tb_stack` | Simulation of all cases, `WIDTH=8`, `DEPTH=8`, `OVERWRITE=0` (GHDL, UVVM) |
 | `sim_overwrite` | `tb_stack` | Simulation of all cases, `WIDTH=16`, `DEPTH=4`, `OVERWRITE=1` (GHDL, UVVM) |
+| `sim_cyclic` | `tb_stack` | Simulation of all cases, `WIDTH=10`, `DEPTH=8`, `OVERWRITE=1`, `CYCLIC_PTR=true` (GHDL, UVVM) |
 
 The `.core` parameters `WIDTH` (int, 8), `DEPTH` (int, 8) and `OVERWRITE` (int, 0) are the testbench generics set by the `sim_*` targets.
 
@@ -206,12 +210,13 @@ No dedicated synthesis target. The HDL of the `default` target is synthesizable:
 |--------|-------|------------|--------------|-----------|
 | 0 | 0 | unchanged | unchanged | none |
 | 1 | 0 | +1 (unchanged if full) | +1 | `push_data_i` at `ptr_last_r` |
-| 0 | 1 | -1 | -1 | none |
+| 0 | 1 | -1 (unchanged if empty, `CYCLIC_PTR` only) | -1 | none |
 | 1 | 1 | unchanged | unchanged | `push_data_i` at `ptr_last_r-1` (top replaced) |
 
 - `push = push_val_i and push_ack_o`, `pop = pop_val_o and pop_ack_i`; all updates require `cke_i = 1`, except the synchronous reset (`arstn_i = 0` on a rising edge clears the stack whatever `cke_i`).
 - `pop_data_o` shows the top word before the clock edge that performs the pop; the next word appears after the edge.
 - With `OVERWRITE /= 0` and a full stack, a push keeps `nb_elt_r` at `DEPTH` and advances `ptr_last_r`, which wraps on the oldest word: the stack keeps the last `DEPTH` pushed words.
+- With `CYCLIC_PTR = true` (KCPSM3 compatibility, e.g. the OpenBlaze8 call stack), `pop = pop_ack_i and (pop_val_o or not push)`: a pop on an empty stack moves the pointer like a KCPSM3 `RETURN` (5-bit cyclic pointer for 32 words), the counter stays at 0 and `pop_val_o` stays 0. With `CYCLIC_PTR = false` (default) such a pop is ignored: the pointer is blocked and the next pop reads the same word again.
 
 ## Directory Structure
 
