@@ -66,7 +66,7 @@ This IP is a small hardware stack (last in, first out), typically used as a retu
 - Pop interface `pop_val_o` / `pop_ack_i` / `pop_data_o`, `pop_val_o = not empty`, top word presented combinationally
 - Simultaneous push and pop replace the top word in one cycle
 - Clock enable `cke_i` freezes the stack (pointers and RAM write)
-- Active-low reset `arstn_i`, sampled on the rising edge of `clk_i`
+- Asynchronous active-low reset `arstn_i`
 - Component declaration available in `asylum.stack_pkg`
 
 ## Block Diagram
@@ -98,7 +98,7 @@ Top-level entity: **`stack`** ([hdl/stack.vhd](hdl/stack.vhd)), library `asylum`
 |------|-----------|------|-------------|
 | `clk_i` | in | std_logic | Clock |
 | `cke_i` | in | std_logic | Clock enable, active high (pointer update and RAM write) |
-| `arstn_i` | in | std_logic | Reset, active low, synchronous to `clk_i` (despite its name): clears `nb_elt_r` and `ptr_last_r` |
+| `arstn_i` | in | std_logic | Asynchronous reset, active low: clears `nb_elt_r` and `ptr_last_r` (synchronous to `clk_i` up to version 1.0.2) |
 
 #### Push
 
@@ -160,7 +160,7 @@ This IP has no software-visible registers.
 
 | File | DUT | Description |
 |------|-----|-------------|
-| [sim/tb_stack.vhd](sim/tb_stack.vhd) | `stack` (generics `WIDTH`, `DEPTH`, `OVERWRITE` of the testbench, defaults 8 / 8 / 0) | Self-checking UVVM testbench. The handshakes and `cke_i` / `arstn_i` are driven cycle by cycle and every cycle `pop_val_o`, `push_ack_o` and `pop_data_o` (top of stack) are compared with a reference model. Tests: 1) flags after reset; 2) push up to full, pop in LIFO order; 3) `DEPTH+3` pushes on a full stack: refused with `OVERWRITE = 0`, accepted with `OVERWRITE /= 0` (the stack keeps the last `DEPTH` words); 4) simultaneous push and pop at every level 0 to `DEPTH` (top word replaced; push only when empty; pop only when full with `OVERWRITE = 0`); 5) `cke_i = 0` freezes the stack (push, pop, push+pop, half full and full); 6) synchronous reset `arstn_i`: no effect before the clock edge, stack empty after it, also with `cke_i = 0` and a push+pop request; 7) 1200 cycles of random push / pop / `cke_i`. `report_alert_counters(FINAL)` gives the verdict (4053 checks with `sim_basic`, 3686 with `sim_overwrite`) |
+| [sim/tb_stack.vhd](sim/tb_stack.vhd) | `stack` (generics `WIDTH`, `DEPTH`, `OVERWRITE` of the testbench, defaults 8 / 8 / 0) | Self-checking UVVM testbench. The handshakes and `cke_i` / `arstn_i` are driven cycle by cycle and every cycle `pop_val_o`, `push_ack_o` and `pop_data_o` (top of stack) are compared with a reference model. Tests: 1) flags after reset; 2) push up to full, pop in LIFO order; 3) `DEPTH+3` pushes on a full stack: refused with `OVERWRITE = 0`, accepted with `OVERWRITE /= 0` (the stack keeps the last `DEPTH` words); 4) simultaneous push and pop at every level 0 to `DEPTH` (top word replaced; push only when empty; pop only when full with `OVERWRITE = 0`); 5) `cke_i = 0` freezes the stack (push, pop, push+pop, half full and full); 6) asynchronous reset `arstn_i`: stack empty before the next clock edge and after it, also with `cke_i = 0` and a push+pop request; 7) 1200 cycles of random push / pop / `cke_i`. `report_alert_counters(FINAL)` gives the verdict (4053 checks with `sim_basic`, 3686 with `sim_overwrite`) |
 
 ### Targets
 
@@ -209,7 +209,7 @@ No dedicated synthesis target. The HDL of the `default` target is synthesizable:
 | 0 | 1 | -1 | -1 | none |
 | 1 | 1 | unchanged | unchanged | `push_data_i` at `ptr_last_r-1` (top replaced) |
 
-- `push = push_val_i and push_ack_o`, `pop = pop_val_o and pop_ack_i`; all updates require `cke_i = 1`, except the synchronous reset (`arstn_i = 0` on a rising edge clears the stack whatever `cke_i`).
+- `push = push_val_i and push_ack_o`, `pop = pop_val_o and pop_ack_i`; all updates require `cke_i = 1`, except the asynchronous reset (`arstn_i = 0` clears the stack at once, whatever `clk_i` and `cke_i`). Up to version 1.0.2 `arstn_i` was only sampled on the rising edge of `clk_i` (synchronous reset despite its name); a reset source that is synchronous to `clk_i` (such as the reset of OpenBlaze8) gives the same cycle behaviour with both versions.
 - `pop_data_o` shows the top word before the clock edge that performs the pop; the next word appears after the edge.
 - With `OVERWRITE /= 0` and a full stack, a push keeps `nb_elt_r` at `DEPTH` and advances `ptr_last_r`, which wraps on the oldest word: the stack keeps the last `DEPTH` pushed words.
 
