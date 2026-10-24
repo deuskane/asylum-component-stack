@@ -1,6 +1,9 @@
-default         : Default Target
-lint_ghdl       : Lint with GHDL (-Wall analysis and elaboration of stack)
-lint_ghdl_synth : Synthesis check, ghdl --synth -Wall of stack (4 configurations)
-sim_basic       : Simulation of all cases (OVERWRITE = 0)
-sim_overwrite   : Simulation of all cases (OVERWRITE = 1)
+default                         : Default Target
+lint_ghdl                       : Lint with GHDL (-Wall analysis and elaboration of stack)
+lint_ghdl_synth_4x16b_overwrite : Synthesis check of stack, 4x16 bits, overwrite
+lint_ghdl_synth_8x8b            : Synthesis check of stack, 8x8 bits
+lint_ghdl_synth_default         : Synthesis check of stack, default generics
+lint_ghdl_synth_openblaze8      : Synthesis check of stack, call stack of OpenBlaze8
+sim_basic                       : Simulation of all cases (OVERWRITE = 0)
+sim_overwrite                   : Simulation of all cases (OVERWRITE = 1)
 

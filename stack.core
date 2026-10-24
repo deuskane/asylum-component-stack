@@ -47,11 +47,12 @@ filesets:
       - bitvis:verification:uvvm
 
   #---------------------------------------
-  # Lint Files (post_run hook of lint_ghdl_synth)
+  # Lint / synthesis check : ghdl_synth.sh / ghdl_synth.mk (pre_run
+  # hook of lint_ghdl_synth_*) of asylum:utils:generators
   #---------------------------------------
-  files_lint:
-    files:
-      - syn/ghdl/ghdl_synth.sh : {file_type : user, copyto : ghdl_synth.sh}
+  syn:
+    depend       :
+      - ">=asylum:utils:generators:2.8.0"
 
 targets:
 
@@ -68,30 +69,60 @@ targets:
   #---------------------------------------
   # Lint : -Wall analysis and elaboration (empty simulation)
   #---------------------------------------
-  lint_ghdl :
+  lint_ghdl : &lint_ghdl
     << : *default
     description     : Lint with GHDL (-Wall analysis and elaboration of stack)
     toplevel        : asylum.stack
+    filesets_append : [syn]
     default_tool    : ghdl
     tools :
       ghdl :
         analyze_options : ["-Wall"]
 
   #---------------------------------------
-  # Synthesis check : lint_ghdl, then ghdl --synth -Wall of stack
-  # for each configuration of syn/ghdl/ghdl_synth.sh (post_run hook)
+  # Synthesis check : -Wall analysis, ghdl --synth -Wall and elaboration
+  # (no simulation) of stack with the generics of the target.
+  # The pre_run hook (ghdl_synth.sh of asylum:utils:generators) adds
+  # ghdl_synth.mk to the edalize Makefile.
+  # FuseSoC merges tools in depth : analyze_options comes from lint_ghdl.
   #---------------------------------------
-  lint_ghdl_synth :
-    << : *default
-    description     : Synthesis check, ghdl --synth -Wall of stack (4 configurations)
-    toplevel        : asylum.stack
-    filesets_append : [files_lint]
-    default_tool    : ghdl
+  lint_ghdl_synth_default : &lint_ghdl_synth
+    << : *lint_ghdl
+    description     : Synthesis check of stack, default generics
     tools :
       ghdl :
-        analyze_options : ["-Wall"]
+        run_options     : ["--no-run"]
     hooks :
-      post_run : [ghdl_synth]
+      pre_run : [ghdl_synth]
+
+  #---------------------------------------
+  lint_ghdl_synth_8x8b :
+  #---------------------------------------
+    << : *lint_ghdl_synth
+    description     : Synthesis check of stack, 8x8 bits
+    parameters      :
+      - WIDTH=8
+      - DEPTH=8
+
+  #---------------------------------------
+  lint_ghdl_synth_4x16b_overwrite :
+  #---------------------------------------
+    << : *lint_ghdl_synth
+    description     : Synthesis check of stack, 4x16 bits, overwrite
+    parameters      :
+      - WIDTH=16
+      - DEPTH=4
+      - OVERWRITE=1
+
+  #---------------------------------------
+  lint_ghdl_synth_openblaze8 :
+  #---------------------------------------
+    << : *lint_ghdl_synth
+    description     : Synthesis check of stack, call stack of OpenBlaze8
+    parameters      :
+      - WIDTH=10
+      - DEPTH=32
+      - OVERWRITE=1
 
   sim_basic:
     << : *default
@@ -128,7 +159,7 @@ targets:
 scripts:
 
   #---------------------------------------
-  # Hook of lint_ghdl_synth (cwd = work_root)
+  # pre_run hook of lint_ghdl_synth_* (cwd = work_root)
   #---------------------------------------
   ghdl_synth :
     cmd : [bash, ghdl_synth.sh]
