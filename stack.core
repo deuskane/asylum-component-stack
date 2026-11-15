@@ -48,11 +48,11 @@ filesets:
 
   #---------------------------------------
   # Lint / synthesis check : ghdl_synth.sh / ghdl_synth.mk (pre_run
-  # hook of lint_ghdl_synth_*) of asylum:utils:generators
+  # hook of lint_ghdl_synth_*) of asylum:utils:ghdl_synth
   #---------------------------------------
   syn:
     depend       :
-      - ">=asylum:utils:generators:2.8.0"
+      - asylum:utils:ghdl_synth
 
 targets:
 
@@ -82,7 +82,7 @@ targets:
   #---------------------------------------
   # Synthesis check : -Wall analysis, ghdl --synth -Wall and elaboration
   # (no simulation) of stack with the generics of the target.
-  # The pre_run hook (ghdl_synth.sh of asylum:utils:generators) adds
+  # The pre_run hook (ghdl_synth.sh of asylum:utils:ghdl_synth) adds
   # ghdl_synth.mk to the edalize Makefile.
   # FuseSoC merges tools in depth : analyze_options comes from lint_ghdl.
   #---------------------------------------
