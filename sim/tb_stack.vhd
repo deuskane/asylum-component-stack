@@ -15,6 +15,7 @@
 -- Date        Version  Author   Description
 -- 2016-11-11  1.0      mrosiere Created
 -- 2026-10-05  2.0      mrosiere Convert to UVVM, add WIDTH/DEPTH/OVERWRITE
+-- 2026-11-16  2.1      mrosiere Test 9 : synchronous reset srst_i
 --                               generics, OVERWRITE, cke_i, reset and random
 --                               tests
 -------------------------------------------------------------------------------
@@ -48,6 +49,7 @@ architecture tb of tb_stack is
   signal clk_ena      : boolean   := true;
   signal cke_i        : std_logic := '1';
   signal arstn_i      : std_logic := '0';
+  signal srst_i       : std_logic := '0';
   signal push_val_i   : std_logic := '0';
   signal push_ack_o   : std_logic;
   signal push_data_i  : std_logic_vector(WIDTH -1 downto 0) := (others => '0');
@@ -71,6 +73,7 @@ begin
     (clk_i       => clk_i
     ,cke_i       => cke_i
     ,arstn_i     => arstn_i
+    ,srst_i      => srst_i
     ,push_val_i  => push_val_i
     ,push_ack_o  => push_ack_o
     ,push_data_i => push_data_i
@@ -126,7 +129,8 @@ begin
                     constant pop  : in boolean;
                     constant msg  : in string;
                     constant cke  : in boolean := true;
-                    constant rst  : in boolean := false) is
+                    constant rst  : in boolean := false;
+                    constant srst : in boolean := false) is
       variable v_push_ok : boolean;
       variable v_pop_ok  : boolean;
     begin
@@ -136,6 +140,7 @@ begin
       pop_ack_i   <= to_sl(pop);
       cke_i       <= to_sl(cke);
       arstn_i     <= to_sl(not rst);
+      srst_i      <= to_sl(srst);
       wait for C_CLK_PERIOD/4;
 
       -- Asynchronous reset: the stack is already cleared (no clock edge needed)
@@ -155,8 +160,9 @@ begin
       v_push_ok := push and push_ack_o = '1';
       v_pop_ok  := pop  and pop_val_o  = '1';
 
-      -- Model update (the reset has priority over cke_i)
-      if rst then
+      -- Model update (the resets have priority over cke_i; the synchronous
+      -- reset clears the stack on the rising edge)
+      if rst or srst then
         v_nb := 0;
       elsif cke then
         if v_push_ok and v_pop_ok then
@@ -192,6 +198,7 @@ begin
       pop_ack_i  <= '0';
       cke_i      <= '1';
       arstn_i    <= '1';
+      srst_i     <= '0';
     end procedure;
 
     -- Asynchronous reset of the DUT and of the model
@@ -390,6 +397,39 @@ begin
       reset("T8 end");
       idle;
     end if;
+
+    ----------------------------------------------
+    log(ID_LOG_HDR, "Test 9: Synchronous reset srst_i", C_SCOPE);
+    ----------------------------------------------
+    reset("T9");
+    for i in 1 to DEPTH/2 loop
+      cycle(true, false, "T9 fill");
+    end loop;
+    -- srst_i = 1 driven on the falling edge: the stack is kept until the
+    -- rising edge (synchronous), then cleared even with cke_i = 0
+    wait until falling_edge(clk_i);
+    srst_i <= '1';
+    cke_i  <= '0';
+    wait for C_CLK_PERIOD/4;
+    check_value(pop_val_o, '1', ERROR, "T9 reset is synchronous: stack kept before the clock edge", C_SCOPE);
+    wait until rising_edge(clk_i);
+    wait for C_CLK_PERIOD/4;
+    v_nb := 0;
+    check_value(pop_val_o , '0', ERROR, "T9 stack empty after the clock edge with srst_i = 1 and cke_i = 0", C_SCOPE);
+    check_value(push_ack_o, '1', ERROR, "T9 push_ack_o after the synchronous reset", C_SCOPE);
+    v_nb_checks := v_nb_checks + 3;
+    idle;
+    -- Synchronous reset with push and pop requested: the reset wins
+    for i in 1 to 3 loop
+      cycle(true, false, "T9 refill");
+    end loop;
+    cycle(true, true, "T9 srst_i with push+pop", srst => true);
+    cycle(false, false, "T9 check after srst_i");
+    -- Stack usable after the synchronous reset
+    for i in 1 to DEPTH loop
+      cycle(true, false, "T9 push after srst_i");
+    end loop;
+    drain("T9");
 
     enable_log_msg(ID_POS_ACK);
     log(ID_SEQUENCER, to_string(v_nb_checks) & " checks done, " & to_string(v_next_data-1) & " words pushed", C_SCOPE);
