@@ -130,7 +130,12 @@ begin
       arstn_i     <= to_sl(not rst);
       wait for C_CLK_PERIOD/4;
 
-      -- Outputs against the model (combinational, independent of cke_i and arstn_i)
+      -- Asynchronous reset: the stack is already cleared (no clock edge needed)
+      if rst then
+        v_nb := 0;
+      end if;
+
+      -- Outputs against the model (combinational, independent of cke_i)
       check_value(pop_val_o , to_sl(v_nb /= 0)                     , ERROR, msg & ": pop_val_o (level " & to_string(v_nb) & ")", C_SCOPE);
       check_value(push_ack_o, to_sl(v_nb /= DEPTH or OVERWRITE /= 0), ERROR, msg & ": push_ack_o (level " & to_string(v_nb) & ")", C_SCOPE);
       v_nb_checks := v_nb_checks + 2;
@@ -142,7 +147,7 @@ begin
       v_push_ok := push and push_ack_o = '1';
       v_pop_ok  := pop  and pop_val_o  = '1';
 
-      -- Model update (synchronous reset has priority over cke_i)
+      -- Model update (the reset has priority over cke_i)
       if rst then
         v_nb := 0;
       elsif cke then
@@ -181,7 +186,7 @@ begin
       arstn_i    <= '1';
     end procedure;
 
-    -- Synchronous reset of the DUT and of the model
+    -- Asynchronous reset of the DUT and of the model
     procedure reset(constant msg : in string) is
     begin
       cycle(false, false, msg & " reset", rst => true);
@@ -203,7 +208,7 @@ begin
     -- Positive acknowledges are not logged (several checks per cycle)
     disable_log_msg(ID_POS_ACK);
 
-    -- Initial reset: the first edge with arstn_i = 0 clears the pointers
+    -- Initial reset: arstn_i = 0 clears the pointers
     arstn_i <= '0';
     wait until rising_edge(clk_i);
     wait until rising_edge(clk_i);
@@ -279,20 +284,20 @@ begin
     drain("T5");
 
     ----------------------------------------------
-    log(ID_LOG_HDR, "Test 6: Synchronous reset arstn_i", C_SCOPE);
+    log(ID_LOG_HDR, "Test 6: Asynchronous reset arstn_i", C_SCOPE);
     ----------------------------------------------
     reset("T6");
     for i in 1 to DEPTH/2 loop
       cycle(true, false, "T6 fill");
     end loop;
-    -- arstn_i = 0 driven on the falling edge: no effect before the rising edge
+    -- arstn_i = 0 driven on the falling edge: stack cleared before the rising edge
     wait until falling_edge(clk_i);
     arstn_i <= '0';
     wait for C_CLK_PERIOD/4;
-    check_value(pop_val_o, '1', ERROR, "T6 reset is synchronous: stack not cleared before the clock edge", C_SCOPE);
-    check_value(pop_data_o, v_stk(v_nb-1), ERROR, "T6 reset is synchronous: top unchanged before the clock edge", C_SCOPE);
-    wait until rising_edge(clk_i);
     v_nb := 0;
+    check_value(pop_val_o, '0', ERROR, "T6 reset is asynchronous: stack cleared before the clock edge", C_SCOPE);
+    check_value(push_ack_o, '1', ERROR, "T6 reset is asynchronous: push_ack_o before the clock edge", C_SCOPE);
+    wait until rising_edge(clk_i);
     wait for C_CLK_PERIOD/4;
     check_value(pop_val_o , '0', ERROR, "T6 stack empty after the clock edge with arstn_i = 0", C_SCOPE);
     check_value(push_ack_o, '1', ERROR, "T6 push_ack_o after reset", C_SCOPE);

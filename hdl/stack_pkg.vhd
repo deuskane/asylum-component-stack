@@ -35,7 +35,7 @@ package stack_pkg is
     port (
       clk_i       : in  std_logic;
       cke_i       : in  std_logic;
-      arstn_i     : in  std_logic;
+      arstn_i     : in  std_logic; -- Asynchronous reset, active low
       -- Stack push
       push_val_i  : in  std_logic;
       push_ack_o  : out std_logic;
