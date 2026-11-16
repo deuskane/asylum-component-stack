@@ -40,7 +40,7 @@
 
 **LIFO stack with valid / acknowledge push and pop interfaces, built on an asynchronous-read `ram_1r1w`, with optional overwrite when full.**
 
-VLNV: `asylum:component:stack:1.1.0`
+VLNV: `asylum:component:stack:1.2.0`
 
 ## Table of Contents
 
@@ -206,7 +206,7 @@ make clean                # remove build/
 Equivalent FuseSoC command:
 
 ```bash
-fusesoc --cores-root . run --build-root build --target sim_basic asylum:component:stack:1.1.0
+fusesoc --cores-root . run --build-root build --target sim_basic asylum:component:stack:1.2.0
 ```
 
 ### Simulation Features
