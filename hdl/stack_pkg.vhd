@@ -39,6 +39,7 @@ package stack_pkg is
       clk_i       : in  std_logic;
       cke_i       : in  std_logic;
       arstn_i     : in  std_logic; -- Asynchronous reset, active low
+      srst_i      : in  std_logic := '0'; -- Synchronous reset, active high (priority over cke_i)
       -- Stack push
       push_val_i  : in  std_logic;
       push_ack_o  : out std_logic;

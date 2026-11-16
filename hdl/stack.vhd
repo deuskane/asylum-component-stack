@@ -20,6 +20,7 @@
 -- Date        Version  Author   Description
 -- 2016-11-11  1.0      mrosiere Created
 -- 2017-03-05  1.0.1    mrosiere Fix sensitive list
+-- 2026-11-16  1.2      mrosiere Synchronous reset srst_i next to arstn_i
 -------------------------------------------------------------------------------
 
 library ieee;
@@ -44,6 +45,7 @@ entity stack is
     clk_i       : in  std_logic;
     cke_i       : in  std_logic;
     arstn_i      : in  std_logic; -- Asynchronous reset, active low
+    srst_i       : in  std_logic := '0'; -- Synchronous reset, active high (priority over cke_i)
     -- stack push
     push_val_i  : in  std_logic;
     push_ack_o  : out std_logic;
@@ -131,7 +133,12 @@ architecture rtl of stack is
       ptr_last_r    <= (others => '0');
     elsif (clk_i'event and clk_i = '1')
     then  -- rising clk_i edge
-        if (cke_i = '1')
+        if (srst_i = '1')
+        then
+          -- synchronous reset, applied whatever cke_i (as a KCPSM3 FDRE)
+          nb_elt_r      <= (others => '0');
+          ptr_last_r    <= (others => '0');
+        elsif (cke_i = '1')
         then
           -- push and pop
           if     ((push ='1') and (pop='1'))

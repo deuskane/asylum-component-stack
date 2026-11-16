@@ -40,7 +40,7 @@
 
 **LIFO stack with valid / acknowledge push and pop interfaces, built on an asynchronous-read `ram_1r1w`, with optional overwrite when full.**
 
-VLNV: `asylum:component:stack:1.1.0`
+VLNV: `asylum:component:stack:1.2.0`
 
 ## Table of Contents
 
@@ -66,7 +66,7 @@ This IP is a small hardware stack (last in, first out), typically used as a retu
 - Pop interface `pop_val_o` / `pop_ack_i` / `pop_data_o`, `pop_val_o = not empty`, top word presented combinationally
 - Simultaneous push and pop replace the top word in one cycle
 - Clock enable `cke_i` freezes the stack (pointers and RAM write)
-- Asynchronous active-low reset `arstn_i`
+- Asynchronous active-low reset `arstn_i` and synchronous active-high reset `srst_i` (default `'0'`), usable together
 - Component declaration available in `asylum.stack_pkg`
 
 ## Block Diagram
@@ -100,6 +100,7 @@ Top-level entity: **`stack`** ([hdl/stack.vhd](hdl/stack.vhd)), library `asylum`
 | `clk_i` | in | std_logic | Clock |
 | `cke_i` | in | std_logic | Clock enable, active high (pointer update and RAM write) |
 | `arstn_i` | in | std_logic | Asynchronous reset, active low: clears `nb_elt_r` and `ptr_last_r` (synchronous to `clk_i` up to version 1.0.2) |
+| `srst_i` | in | std_logic | Synchronous reset, active high, default `'0'`: clears `nb_elt_r` and `ptr_last_r` on the rising edge of `clk_i`, whatever `cke_i` (as the `FDRE` stack pointer of KCPSM3) |
 
 #### Push
 
@@ -161,7 +162,7 @@ This IP has no software-visible registers.
 
 | File | DUT | Description |
 |------|-----|-------------|
-| [sim/tb_stack.vhd](sim/tb_stack.vhd) | `stack` (generics `WIDTH`, `DEPTH`, `OVERWRITE` of the testbench, defaults 8 / 8 / 0) | Self-checking UVVM testbench. The handshakes and `cke_i` / `arstn_i` are driven cycle by cycle and every cycle `pop_val_o`, `push_ack_o` and `pop_data_o` (top of stack) are compared with a reference model. Tests: 1) flags after reset; 2) push up to full, pop in LIFO order; 3) `DEPTH+3` pushes on a full stack: refused with `OVERWRITE = 0`, accepted with `OVERWRITE /= 0` (the stack keeps the last `DEPTH` words); 4) simultaneous push and pop at every level 0 to `DEPTH` (top word replaced; push only when empty; pop only when full with `OVERWRITE = 0`); 5) `cke_i = 0` freezes the stack (push, pop, push+pop, half full and full); 6) asynchronous reset `arstn_i`: stack empty before the next clock edge and after it, also with `cke_i = 0` and a push+pop request; 7) 1200 cycles of random push / pop / `cke_i`. `report_alert_counters(FINAL)` gives the verdict (4053 checks with `sim_basic`, 3686 with `sim_overwrite`) |
+| [sim/tb_stack.vhd](sim/tb_stack.vhd) | `stack` (generics `WIDTH`, `DEPTH`, `OVERWRITE` of the testbench, defaults 8 / 8 / 0) | Self-checking UVVM testbench. The handshakes and `cke_i` / `arstn_i` are driven cycle by cycle and every cycle `pop_val_o`, `push_ack_o` and `pop_data_o` (top of stack) are compared with a reference model. Tests: 1) flags after reset; 2) push up to full, pop in LIFO order; 3) `DEPTH+3` pushes on a full stack: refused with `OVERWRITE = 0`, accepted with `OVERWRITE /= 0` (the stack keeps the last `DEPTH` words); 4) simultaneous push and pop at every level 0 to `DEPTH` (top word replaced; push only when empty; pop only when full with `OVERWRITE = 0`); 5) `cke_i = 0` freezes the stack (push, pop, push+pop, half full and full); 6) asynchronous reset `arstn_i`: stack empty before the next clock edge and after it, also with `cke_i = 0` and a push+pop request; 7) 1200 cycles of random push / pop / `cke_i`; 8) cyclic pointer (`CYCLIC_PTR` only); 9) synchronous reset `srst_i`: stack kept before the clock edge, empty after it even with `cke_i = 0`, also with a push+pop request. `report_alert_counters(FINAL)` gives the verdict (4130 checks with `sim_basic`, 3733 with `sim_overwrite`) |
 
 The testbench generic `CYCLIC_PTR` (default false, `true` in `sim_cyclic`) is passed to the DUT; with it, test 7 does not pop an empty stack and a test 8 runs `DEPTH+1` pushes, `DEPTH+3` pops (2 on an empty stack), then pushes and pops, checked against a circular model of the RAM (word below the pointer, `pop_val_o`).
 
@@ -205,7 +206,7 @@ make clean                # remove build/
 Equivalent FuseSoC command:
 
 ```bash
-fusesoc --cores-root . run --build-root build --target sim_basic asylum:component:stack:1.1.0
+fusesoc --cores-root . run --build-root build --target sim_basic asylum:component:stack:1.2.0
 ```
 
 ### Simulation Features
@@ -228,7 +229,7 @@ No vendor synthesis target (the `lint_ghdl_synth_*` targets check the RTL with `
 | 0 | 1 | -1 (unchanged if empty, `CYCLIC_PTR` only) | -1 | none |
 | 1 | 1 | unchanged | unchanged | `push_data_i` at `ptr_last_r-1` (top replaced) |
 
-- `push = push_val_i and push_ack_o`, `pop = pop_val_o and pop_ack_i`; all updates require `cke_i = 1`, except the asynchronous reset (`arstn_i = 0` clears the stack at once, whatever `clk_i` and `cke_i`). Up to version 1.0.2 `arstn_i` was only sampled on the rising edge of `clk_i` (synchronous reset despite its name); a reset source that is synchronous to `clk_i` (such as the reset of OpenBlaze8) gives the same cycle behaviour with both versions.
+- `push = push_val_i and push_ack_o`, `pop = pop_val_o and pop_ack_i`; all updates require `cke_i = 1`, except the resets: `arstn_i = 0` clears the stack at once, whatever `clk_i` and `cke_i`; `srst_i = 1` clears it on the rising edge of `clk_i`, whatever `cke_i`. A processor that must match KCPSM3 cycle by cycle (OpenBlaze8) uses `srst_i` with `arstn_i` tied to `'1'`. Up to version 1.0.2 `arstn_i` was only sampled on the rising edge of `clk_i` (synchronous reset despite its name); a reset source that is synchronous to `clk_i` (such as the reset of OpenBlaze8) gives the same cycle behaviour with both versions.
 - `pop_data_o` shows the top word before the clock edge that performs the pop; the next word appears after the edge.
 - With `OVERWRITE /= 0` and a full stack, a push keeps `nb_elt_r` at `DEPTH` and advances `ptr_last_r`, which wraps on the oldest word: the stack keeps the last `DEPTH` pushed words.
 - With `CYCLIC_PTR = true` (KCPSM3 compatibility, e.g. the OpenBlaze8 call stack), `pop = pop_ack_i and (pop_val_o or not push)`: a pop on an empty stack moves the pointer like a KCPSM3 `RETURN` (5-bit cyclic pointer for 32 words), the counter stays at 0 and `pop_val_o` stays 0. With `CYCLIC_PTR = false` (default) such a pop is ignored: the pointer is blocked and the next pop reads the same word again.
