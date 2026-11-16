@@ -17,9 +17,11 @@ CAPI=2:
 # 2025-09-06  1.0.1    mrosiere Update deps
 # 2026-10-05  1.0.2    mrosiere UVVM testbench, OVERWRITE parameter type int,
 #                               add sim_overwrite target
+# 2026-11-16  1.1.0    mrosiere arstn_i asynchronous reset, CYCLIC_PTR generic
+#                               (KCPSM3 cyclic pointer), lint_ghdl targets
 #-----------------------------------------------------------------------------
 
-name : asylum:component:stack:1.0.2
+name : asylum:component:stack:1.1.0
 description : Stack
 
 filesets:
