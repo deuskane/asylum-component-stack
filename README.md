@@ -1,226 +1,193 @@
 <!--
-  README GENERATION INSTRUCTIONS (for the next regeneration run)
+  README MODEL (common to every Asylum IP, keep the same headings)
   ----------------------------------------------------------------
-  This README follows the common Asylum IP model. Regenerate it from the
-  sources, never from the previous README text alone.
-
-  Sources of truth (in priority order):
-    1. hdl/*.vhd            : entities, generics, ports, packages
-    2. hdl/csr/*.hjson      : register map (regtool); *_csr.md/.h are generated
-    3. <IP>.core            : VLNV (name), filesets, targets, depends, revisions
-    4. mk/targets.txt       : target list shown by `make help`; mk/defs.mk
-    5. sim/, syn/, esw/, boards/ : testbenches, constraints, software
-  Section order (keep it, same headings in every IP):
-    CI badge / Title + one-line description + VLNV / Table of Contents /
-    Introduction (Key Features) / Block Diagram / Top-Level (Parameters,
-    Ports, Instantiation Example) / HDL Modules / Register Map /
-    Verification / Synthesis / Design Notes (optional) /
-    Directory Structure / Dependencies
+  Regenerate from the sources, never from the previous README text alone:
+    hdl/*.vhd (entities, generics, ports), hdl/csr/*.hjson (register map),
+    <IP>.core (VLNV, targets, depends), mk/targets.txt, sim/, syn/, esw/.
+  Sections, in this order:
+    badges / title + one-line pitch / Overview / Features / Block Diagram /
+    Getting Started / Hardware Interfaces / Configuration / Resources /
+    Theory of Operation / Registers / Programmer's Guide /
+    Design Verification / Dependencies and Related IPs / License
   Rules:
-    - Language: English. Tables: Parameters = Name|Type|Default|Description,
-      Ports = Name|Direction|Type|Description (grouped by interface).
-    - Register Map: link to the generated hdl/csr/<X>_csr.md (plus the
-      .hjson source and _csr.h header); never copy register tables here.
-    - Top-Level = sbi_* wrapper if present, else the entity used by the
-      `default` target, else the main entity (libraries: list packages).
-    - Write "This IP has no software-visible registers." / "No dedicated
-      synthesis target ..." instead of removing a section.
-    - Keep still-accurate hand-written content (ISA tables, results,
-      images) in "Design Notes"; drop anything not backed by the sources.
-    - Block diagram: doc/<NAME>.drawio (NAME = 4th field of the VLNV),
-      top entity box with generics on top, inputs left, outputs right,
-      bus interfaces as bold arrows, internal blocks colour-coded
-      (CSR yellow, FIFO/memory green, core logic blue, external grey).
-      Update it whenever ports/generics/sub-blocks change.
-    - Do not edit generated files (hdl/csr/*_csr.*) or the CI badge URL.
+    - English, short and factual: every statement backed by the sources.
+    - No VLNV line: the version badge shows it.
+    - Badges: first line version, license; second line CI, lint, sim, syn.
+    - Block diagram and FSM: pages Overview and FSM of doc/<NAME>.drawio, exported to
+      doc/<NAME>-Overview.png and doc/<NAME>-FSM.png (make -C doc).
+    - Timing diagrams: WaveDrom source doc/<NAME>-<what>.json, rendered
+      doc/<NAME>-<what>.svg (make -C doc), shown as images.
+    - No CPU named (OpenBlaze, PicoBlaze, RISC-V) outside the CPU and SoC IPs.
+    - Registers: link to the generated hdl/csr/<X>_csr.md, never copy the tables.
+    - Tables: Configuration = Name|Type|Default|Description,
+      Hardware Interfaces = Name|Direction|Type|Description, grouped by interface.
+    - A section with nothing to say is one line ("This IP has no
+      software-visible registers."), never removed.
 -->
+[![Version](https://img.shields.io/github/v/tag/deuskane/asylum-component-stack?filter=asylum-component-stack-*&label=version&color=blue)](https://github.com/deuskane/asylum-component-stack/tags)
+[![License](https://img.shields.io/github/license/deuskane/asylum-component-stack)](LICENSE)
+
 [![CI](https://github.com/deuskane/asylum-component-stack/actions/workflows/ci.yml/badge.svg)](https://github.com/deuskane/asylum-component-stack/actions/workflows/ci.yml)
+[![lint](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fdeuskane%2Fasylum-component-stack%2Fbadges%2Flint.json)](https://github.com/deuskane/asylum-component-stack/actions/workflows/ci.yml)
+[![sim](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fdeuskane%2Fasylum-component-stack%2Fbadges%2Fsim.json)](https://github.com/deuskane/asylum-component-stack/actions/workflows/ci.yml)
+[![syn](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fdeuskane%2Fasylum-component-stack%2Fbadges%2Fsyn.json)](https://github.com/deuskane/asylum-component-stack/actions/workflows/ci.yml)
 
-# asylum-component-stack
+# Stack
 
-**LIFO stack with valid / acknowledge push and pop interfaces, built on an asynchronous-read `ram_1r1w`, with optional overwrite when full.**
+**A small, readable hardware stack (LIFO) in VHDL: valid / acknowledge push and pop, top word always visible, optional overwrite when full and cyclic pointer.**
 
-VLNV: `asylum:component:stack:1.2.0`
+Part of the [Asylum project](https://github.com/deuskane/asylum-project), a collection of small IP cores, written to be read and learned from.
 
 ## Table of Contents
 
-1. [Introduction](#introduction)
-2. [Block Diagram](#block-diagram)
-3. [Top-Level](#top-level)
-4. [HDL Modules](#hdl-modules)
-5. [Register Map](#register-map)
-6. [Verification](#verification)
-7. [Synthesis](#synthesis)
-8. [Design Notes](#design-notes)
-9. [Directory Structure](#directory-structure)
-10. [Dependencies](#dependencies)
+1. [Overview](#overview)
+2. [Features](#features)
+3. [Block Diagram](#block-diagram)
+4. [Getting Started](#getting-started)
+5. [Hardware Interfaces](#hardware-interfaces)
+6. [Configuration](#configuration)
+7. [Resources](#resources)
+8. [Theory of Operation](#theory-of-operation)
+9. [Registers](#registers)
+10. [Programmer's Guide](#programmers-guide)
+11. [Design Verification](#design-verification)
+12. [Dependencies and Related IPs](#dependencies-and-related-ips)
+13. [License](#license)
 
-## Introduction
+## Overview
 
-This IP is a small hardware stack (last in, first out), typically used as a return-address stack in a processor. Words are stored in a `ram_1r1w` instance (core `asylum:component:ram`) with asynchronous read; a pointer to the next free slot (`ptr_last_r`) and an element counter (`nb_elt_r`) give the top of the stack and the full / empty state. The top word is always visible on `pop_data_o` while the stack is not empty. With `OVERWRITE /= 0` a push on a full stack is accepted and overwrites the oldest word (circular behaviour).
+This IP is a last in, first out memory: the last word pushed is the first one popped. A typical use is the return-address stack of a processor (a call pushes the return address, a return pops it).
 
-### Key Features
+The words are stored in a `ram_1r1w` with an asynchronous read (core `asylum:component:ram`). A pointer gives the next free slot of the RAM and a counter the number of words: the top word is always on `pop_data_o` while the stack is not empty, and the stack tells whether it can accept a push (`push_ack_o`) and whether it holds a word (`pop_val_o`).
 
-- Generic word width (`WIDTH`) and depth (`DEPTH`, power of 2)
-- Push interface `push_val_i` / `push_ack_o` / `push_data_i`, `push_ack_o = not full` (or always `1` with `OVERWRITE /= 0`)
-- Pop interface `pop_val_o` / `pop_ack_i` / `pop_data_o`, `pop_val_o = not empty`, top word presented combinationally
-- Simultaneous push and pop replace the top word in one cycle
-- Clock enable `cke_i` freezes the stack (pointers and RAM write)
-- Asynchronous active-low reset `arstn_i` and synchronous active-high reset `srst_i` (default `'0'`), usable together
-- Component declaration available in `asylum.stack_pkg`
+## Features
+
+- Word width (`WIDTH`) and depth (`DEPTH`, power of 2) set by generics
+- Push interface `push_val_i` / `push_ack_o` / `push_data_i`, pop interface `pop_val_o` / `pop_ack_i` / `pop_data_o`
+- Top of stack on `pop_data_o` without latency (asynchronous RAM read)
+- Push and pop in the same cycle: the top word is replaced
+- Full stack: push refused (default) or accepted, the oldest word being overwritten (`OVERWRITE /= 0`)
+- Cyclic pointer (`CYCLIC_PTR`): a pop on an empty stack still moves the pointer, the next pop reads the word below
+- Clock enable `cke_i`, asynchronous reset `arstn_i` and synchronous reset `srst_i`, usable together
 
 ## Block Diagram
 
-![Block diagram](doc/stack-Overview.png)
+![Block diagram of the stack](doc/stack-Overview.png)
 
-- The flag / handshake logic derives `full` (MSB of `nb_elt_r`) and `empty` (`nb_elt_r = 0`), drives `push_ack_o` and `pop_val_o` and computes the `push` and `pop` events.
-- The `transition` process updates `nb_elt_r` (`log2(DEPTH)+1` bits) and `ptr_last_r` (`log2(DEPTH)` bits) on push only (+1) or pop only (-1); push and pop together leave them unchanged.
-- The RAM read address is always `ptr_last_r-1` (top of stack); the write address is `ptr_last_r` for a push, or `ptr_last_r-1` when a pop happens in the same cycle.
-- `ins_ram_1r1w` (`SYNC_READ = false`) is written with `push_data_i` on every push and its read data is `pop_data_o`.
+The control logic (orange cloud) turns the handshakes into the `push` and `pop` events, from the `full` and `empty` flags of the level counter `nb_elt`. The pointer `ptr_last` moves by +1 on a push and by -1 on a pop; the RAM is read at `ptr_last-1` (top of stack) and written at `ptr_last` (push) or at `ptr_last-1` (push and pop in the same cycle).
 
-## Top-Level
+## Getting Started
 
-Top-level entity: **`stack`** ([hdl/stack.vhd](hdl/stack.vhd)), library `asylum`, component declared in `asylum.stack_pkg`.
+The cores of the Asylum IPs are published in the FuseSoC library [asylum-cores](https://github.com/deuskane/asylum-cores) (with the UVVM core used by the testbenches):
 
-### Parameters
+```bash
+pip install fusesoc
+fusesoc library add https://github.com/deuskane/asylum-cores
+fusesoc run --target sim_cyclic_lifo asylum:component:stack  # needs GHDL
+```
 
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| `WIDTH` | natural | `32` | Word width in bits |
-| `DEPTH` | natural | `4` | Number of words; must be a power of 2 (`full` is the MSB of a `log2(DEPTH)+1`-bit counter) |
-| `OVERWRITE` | natural | `0` | `0`: push refused when full; `/= 0`: push always accepted, the oldest word is overwritten when full |
-| `CYCLIC_PTR` | boolean | `false` | `true`: purely cyclic pointer as the KCPSM3 call stack: a pop on an empty stack (without push) still decrements `ptr_last_r`, so the next pop reads the word below; requires `OVERWRITE /= 0` (assertion failure otherwise). `false`: a pop on an empty stack is ignored |
-
-### Ports
-
-#### Clock & Reset
-
-| Name | Direction | Type | Description |
-|------|-----------|------|-------------|
-| `clk_i` | in | std_logic | Clock |
-| `cke_i` | in | std_logic | Clock enable, active high (pointer update and RAM write) |
-| `arstn_i` | in | std_logic | Asynchronous reset, active low: clears `nb_elt_r` and `ptr_last_r` (synchronous to `clk_i` up to version 1.0.2) |
-| `srst_i` | in | std_logic | Synchronous reset, active high, default `'0'`: clears `nb_elt_r` and `ptr_last_r` on the rising edge of `clk_i`, whatever `cke_i` (as the `FDRE` stack pointer of KCPSM3) |
-
-#### Push
-
-| Name | Direction | Type | Description |
-|------|-----------|------|-------------|
-| `push_val_i` | in | std_logic | Push request |
-| `push_ack_o` | out | std_logic | Push accepted (`not full`, or `1` when `OVERWRITE /= 0`) |
-| `push_data_i` | in | std_logic_vector(WIDTH-1 downto 0) | Word to push |
-
-#### Pop
-
-| Name | Direction | Type | Description |
-|------|-----------|------|-------------|
-| `pop_val_o` | out | std_logic | Stack not empty: `pop_data_o` is valid |
-| `pop_ack_i` | in | std_logic | Pop: the top word is removed when `pop_val_o = 1` |
-| `pop_data_o` | out | std_logic_vector(WIDTH-1 downto 0) | Top of stack (asynchronous RAM read at `ptr_last_r-1`) |
-
-### Instantiation Example
+To use the IP in your design, add `asylum:component:stack` to the `depend` list of your core and instantiate `stack` (library `asylum`):
 
 ```vhdl
 library asylum;
 use     asylum.stack_pkg.all;
 
-  ins_stack : entity asylum.stack
+  ins_stack : stack
     generic map
     ( WIDTH       => 10
      ,DEPTH       => 16
-     ,OVERWRITE   => 1
+     ,OVERWRITE   => 1               -- a push on a full stack drops the oldest word
+     ,CYCLIC_PTR  => false
     )
     port map
     ( clk_i       => clk
-     ,cke_i       => cke
+     ,cke_i       => '1'
      ,arstn_i     => arst_b
-     ,push_val_i  => stack_push
-     ,push_ack_o  => stack_push_ack
-     ,push_data_i => stack_push_data   -- std_logic_vector(9 downto 0)
+     ,srst_i      => '0'
+     ,push_val_i  => call
+     ,push_ack_o  => open            -- always '1' with OVERWRITE /= 0
+     ,push_data_i => return_address  -- std_logic_vector(9 downto 0)
      ,pop_val_o   => stack_not_empty
-     ,pop_ack_i   => stack_pop
-     ,pop_data_o  => stack_top          -- std_logic_vector(9 downto 0)
+     ,pop_ack_i   => ret
+     ,pop_data_o  => top_address     -- std_logic_vector(9 downto 0)
     );
 ```
 
-## HDL Modules
+## Hardware Interfaces
 
-| File | Unit | Kind | Role |
-|------|------|------|------|
-| [hdl/stack_pkg.vhd](hdl/stack_pkg.vhd) | `stack_pkg` | package | Component declaration of `stack` |
-| [hdl/stack.vhd](hdl/stack.vhd) | `stack` | entity | Top-level: counters, flags, address selection, `ram_1r1w` instance |
+Top-level entity: **`stack`** ([hdl/stack.vhd](hdl/stack.vhd)), component in `asylum.stack_pkg` ([hdl/stack_pkg.vhd](hdl/stack_pkg.vhd)).
 
-There is no secondary entity in this IP; the storage is the `ram_1r1w` entity of `asylum:component:ram`.
+### Clock and Reset
 
-## Register Map
+| Name | Direction | Type | Description |
+|------|-----------|------|-------------|
+| `clk_i` | in | std_logic | Clock, the only clock of the IP |
+| `cke_i` | in | std_logic | Clock enable, active high: the counter, the pointer and the RAM write only change when `cke_i = 1` |
+| `arstn_i` | in | std_logic | Asynchronous reset, active low: empty stack at once, whatever `clk_i` and `cke_i` |
+| `srst_i` | in | std_logic | Synchronous reset, active high, default `'0'`: empty stack after the rising edge of `clk_i`, whatever `cke_i` |
 
-This IP has no software-visible registers.
+### Push
 
-## Verification
+| Name | Direction | Type | Description |
+|------|-----------|------|-------------|
+| `push_val_i` | in | std_logic | Push request |
+| `push_ack_o` | out | std_logic | Push accepted: `not full`, always `'1'` with `OVERWRITE /= 0` |
+| `push_data_i` | in | std_logic_vector(WIDTH-1 downto 0) | Word to push |
 
-### Testbenches
+### Pop
 
-| File | DUT | Description |
-|------|-----|-------------|
-| [sim/tb_stack.vhd](sim/tb_stack.vhd) | `stack` (generics `WIDTH`, `DEPTH`, `OVERWRITE` of the testbench, defaults 8 / 8 / 0) | Self-checking UVVM testbench. The handshakes and `cke_i` / `arstn_i` are driven cycle by cycle and every cycle `pop_val_o`, `push_ack_o` and `pop_data_o` (top of stack) are compared with a reference model. Tests: 1) flags after reset; 2) push up to full, pop in LIFO order; 3) `DEPTH+3` pushes on a full stack: refused with `OVERWRITE = 0`, accepted with `OVERWRITE /= 0` (the stack keeps the last `DEPTH` words); 4) simultaneous push and pop at every level 0 to `DEPTH` (top word replaced; push only when empty; pop only when full with `OVERWRITE = 0`); 5) `cke_i = 0` freezes the stack (push, pop, push+pop, half full and full); 6) asynchronous reset `arstn_i`: stack empty before the next clock edge and after it, also with `cke_i = 0` and a push+pop request; 7) 1200 cycles of random push / pop / `cke_i`; 8) cyclic pointer (`CYCLIC_PTR` only); 9) synchronous reset `srst_i`: stack kept before the clock edge, empty after it even with `cke_i = 0`, also with a push+pop request. `report_alert_counters(FINAL)` gives the verdict (4130 checks with `sim_basic`, 3733 with `sim_overwrite`) |
+| Name | Direction | Type | Description |
+|------|-----------|------|-------------|
+| `pop_val_o` | out | std_logic | Stack not empty: `pop_data_o` is the top word |
+| `pop_ack_i` | in | std_logic | Pop request: the top word is removed on the rising edge when `pop_val_o = 1` (see `CYCLIC_PTR`) |
+| `pop_data_o` | out | std_logic_vector(WIDTH-1 downto 0) | Top of stack (asynchronous RAM read at `ptr_last_r-1`) |
 
-The testbench generic `CYCLIC_PTR` (default false, `true` in `sim_cyclic`) is passed to the DUT; with it, test 7 does not pop an empty stack and a test 8 runs `DEPTH+1` pushes, `DEPTH+3` pops (2 on an empty stack), then pushes and pops, checked against a circular model of the RAM (word below the pointer, `pop_val_o`).
+## Configuration
 
-### Targets
+| Name | Type | Default | Description |
+|------|------|---------|-------------|
+| `WIDTH` | natural | `32` | Word width in bits |
+| `DEPTH` | natural | `4` | Number of words, a power of 2 (the pointer wraps modulo `2**log2(DEPTH)`, `ram_1r1w` reports an error in simulation otherwise) |
+| `OVERWRITE` | natural | `0` | `0`: a push on a full stack is refused (`push_ack_o = 0`); `/= 0`: it is accepted and overwrites the oldest word |
+| `CYCLIC_PTR` | boolean | `false` | `true`: a pop on an empty stack (without push in the same cycle) still moves the pointer back, the next pop reads the word below; needs `OVERWRITE /= 0` (assertion failure otherwise). `false`: a pop on an empty stack is ignored |
 
-| Target | Toplevel | Description |
-|--------|----------|-------------|
-| `default` | `stack` | HDL fileset only (not a simulation) |
-| `sim_basic` | `tb_stack` | Simulation of all cases, `WIDTH=8`, `DEPTH=8`, `OVERWRITE=0` (GHDL, UVVM) |
-| `sim_overwrite` | `tb_stack` | Simulation of all cases, `WIDTH=16`, `DEPTH=4`, `OVERWRITE=1` (GHDL, UVVM) |
-| `sim_cyclic` | `tb_stack` | Simulation of all cases, `WIDTH=10`, `DEPTH=8`, `OVERWRITE=1`, `CYCLIC_PTR=true` (GHDL, UVVM) |
-| `lint_ghdl` | `asylum.stack` | Lint: GHDL `-Wall` analysis and elaboration (empty simulation) |
-| `lint_ghdl_synth_default` | `asylum.stack` | Synthesis check (see below), default generics |
-| `lint_ghdl_synth_8x8b` | `asylum.stack` | Synthesis check, 8x8 bits: `WIDTH=8`, `DEPTH=8` |
-| `lint_ghdl_synth_4x16b_overwrite` | `asylum.stack` | Synthesis check, 4x16 bits, overwrite: `WIDTH=16`, `DEPTH=4`, `OVERWRITE=1` |
-| `lint_ghdl_synth_openblaze8` | `asylum.stack` | Synthesis check, call stack of OpenBlaze8: `WIDTH=10`, `DEPTH=32`, `OVERWRITE=1` |
-| `lint_ghdl_synth_cyclic` | `asylum.stack` | Synthesis check, call stack of OpenBlaze8 with a cyclic pointer (KCPSM3): `WIDTH=10`, `DEPTH=32`, `OVERWRITE=1`, `CYCLIC_PTR=true` |
+## Resources
 
-A `lint_ghdl_synth_*` target is `lint_ghdl` with the generics of its configuration (FuseSoC `parameters`) and a `pre_run` hook, `ghdl_synth.sh` of `asylum:utils:ghdl_synth`, which adds `include ghdl_synth.mk` to the Makefile generated by edalize. The run step (`make run EXTRA_OPTIONS=<generics>`) then runs, in the build directory:
+Figures of the `syn_*` targets (`make nonreg_syn`, see [Targets](#targets)): `stack` with the generics of each configuration, synthesized by Yosys and its GHDL plugin; the reports are in the build directory of each target.
 
-1. `ghdl --synth` of the toplevel (rule `ghdl_synth` of `ghdl_synth.mk`), with the options of the target: `STD`, `ANALYZE_OPTIONS` (`-Wall`), `TOPLEVEL_LIBS`, `TOPLEVEL` and the generics. It writes `stack_synth.vhd` (netlist) and `stack_synth.log`, prints the warnings, and fails on a synthesis error (an inferred latch is one);
-2. `ghdl -r --no-run`: elaboration with the same generics, without simulation.
+| Configuration | LUT¹ | LUTRAM¹ | FF¹ | CARRY4¹ | MUXF7/F8¹ | BRAM¹ | DSP¹ | Area² (µm²) | kGE³ |
+|---|---|---|---|---|---|---|---|---|---|
+| `syn_default` (4 x 32 bits) | 26 | 24 | 5 | 1 | 6 | 0 | 0 | 5079.87 | 1.353 |
+| `syn_8x8b` (8 x 8 bits) | 30 | 8 | 7 | 3 | 0 | 0 | 0 | 2914.04 | 0.776 |
+| `syn_4x16b_overwrite` (4 x 16 bits, `OVERWRITE = 1`) | 28 | 12 | 5 | 1 | 6 | 0 | 0 | 2712.60 | 0.723 |
+| `syn_openblaze8` (32 x 10 bits, `OVERWRITE = 1`) | 44 | 8 | 11 | 6 | 1 | 0 | 0 | 12948.67 | 3.450 |
+| `syn_cyclic` (32 x 10 bits, `OVERWRITE = 1`, `CYCLIC_PTR = true`) | 44 | 8 | 11 | 6 | 3 | 0 | 0 | 12976.20 | 3.457 |
 
-To add a configuration, add a target with its `parameters` (the generics are declared in the `parameters` section of `stack.core`).
+¹ Xilinx Artix-7 (LUT6), Yosys 0.33 `synth_xilinx -flatten -noiopad -noclkbuf`, before place and route: every cell of the netlist is counted, Vivado may differ. An `INV` counts as a `LUT1`: `synth_xilinx` puts one on the reset pin of each flip-flop with the active-low reset (8 of the 26 LUTs of `syn_default`, 12 of 30 for `syn_8x8b`, 8 of 28 for `syn_4x16b_overwrite`, 18 of 44 for the two 32-word configurations). The words are in distributed RAM (`RAM32M`, 4 LUTRAM each): the RAM has an asynchronous read, which a block RAM does not have, so there is never a BRAM. Flip-flops: the level counter (`log2(DEPTH)+1` bits) and the pointer (`log2(DEPTH)` bits) only.
 
-The `.core` parameters `WIDTH` (int, 8), `DEPTH` (int, 8) and `OVERWRITE` (int, 0) are the testbench generics set by the `sim_*` targets.
+² SkyWater sky130 `sky130_fd_sc_hd`, typical corner (tt, 25 °C, 1.80 V), Yosys 0.33 `synth` + `dfflibmap` + `abc -liberty`: standard-cell area only, no timing constraint, no buffering, clock tree or placement. There is no SRAM macro: the `WIDTH x DEPTH` bits of the RAM become flip-flops and most of the area.
 
-### How to Run
+³ Area in thousands of NAND2 gate equivalents (`sky130_fd_sc_hd__nand2_1` = 3.7536 µm²).
 
-The default tool is GHDL (`mk/defs.mk`: `TOOL ?= ghdl`, `TARGET ?= sim_basic`).
+## Theory of Operation
 
-```bash
-make help                 # variables, rules and target list (mk/targets.txt)
-make sim_basic            # run one target (log in log/)
-make nonreg_sim           # run every sim_* target
-make lint_ghdl            # GHDL -Wall lint (make nonreg_lint: every lint_* target)
-make lint_ghdl_synth_default   # GHDL -Wall lint + ghdl --synth -Wall check of one configuration
-make clean                # remove build/
-```
+### Hierarchy
 
-Equivalent FuseSoC command:
+| File | Unit | Role |
+|------|------|------|
+| [hdl/stack.vhd](hdl/stack.vhd) | `stack` | Level counter `nb_elt_r`, pointer `ptr_last_r`, flags, RAM addresses, `ram_1r1w` instance |
+| [hdl/stack_pkg.vhd](hdl/stack_pkg.vhd) | `stack_pkg` | Component `stack` |
 
-```bash
-fusesoc --cores-root . run --build-root build --target sim_basic asylum:component:stack:1.2.0
-```
+The storage is the `ram_1r1w` entity of `asylum:component:ram`, with `SYNC_READ = false`.
 
-### Simulation Features
+### Counter, pointer and flags
 
-- Both `sim_*` targets analyze with `-Wall -fsynopsys -frelaxed --no-vital-checks` and run with `--fst=dut.fst --ieee-asserts=disable` (waveform always written to `dut.fst`).
-- The testbench requires a power-of-2 `DEPTH` (the pointer `ptr_last_r` wraps modulo `2**log2(DEPTH)`).
+- `nb_elt_r` (`log2(DEPTH)+1` bits) is the number of words: `full` is its MSB (`nb_elt_r = DEPTH`), `empty` is `nb_elt_r = 0`.
+- `ptr_last_r` (`log2(DEPTH)` bits) is the next free slot of the RAM; the top word is at `ptr_last_r-1`. The pointer wraps modulo `DEPTH`, the counter does not (it stays between 0 and `DEPTH`).
+- `push_ack_o = not full` (`'1'` with `OVERWRITE /= 0`), `pop_val_o = not empty`.
+- `push = push_val_i and push_ack_o`; `pop = pop_ack_i and pop_val_o` (with `CYCLIC_PTR`: `pop_ack_i and (pop_val_o or not push_val_i)`).
 
-## Synthesis
-
-No vendor synthesis target (the `lint_ghdl_synth_*` targets check the RTL with `ghdl --synth`, see [Targets](#targets)). The HDL of the `default` target is synthesizable: `stack.vhd` contains no simulation-only construct (no `textio`, file access, `report` or `wait`); the `ram_1r1w` it instantiates only has a `translate_off` check that `DEPTH` is a power of 2. The storage is `WIDTH x DEPTH` bits of RAM with an asynchronous read port (distributed / LUT RAM or registers), plus a `log2(DEPTH)+1`-bit counter and a `log2(DEPTH)`-bit pointer.
-
-## Design Notes
-
-### Operation
+On the rising edge of `clk_i`, with `cke_i = 1` and no reset:
 
 | `push` | `pop` | `nb_elt_r` | `ptr_last_r` | RAM write |
 |--------|-------|------------|--------------|-----------|
@@ -229,34 +196,120 @@ No vendor synthesis target (the `lint_ghdl_synth_*` targets check the RTL with `
 | 0 | 1 | -1 (unchanged if empty, `CYCLIC_PTR` only) | -1 | none |
 | 1 | 1 | unchanged | unchanged | `push_data_i` at `ptr_last_r-1` (top replaced) |
 
-- `push = push_val_i and push_ack_o`, `pop = pop_val_o and pop_ack_i`; all updates require `cke_i = 1`, except the resets: `arstn_i = 0` clears the stack at once, whatever `clk_i` and `cke_i`; `srst_i = 1` clears it on the rising edge of `clk_i`, whatever `cke_i`. A processor that must match KCPSM3 cycle by cycle (OpenBlaze8) uses `srst_i` with `arstn_i` tied to `'1'`. Up to version 1.0.2 `arstn_i` was only sampled on the rising edge of `clk_i` (synchronous reset despite its name); a reset source that is synchronous to `clk_i` (such as the reset of OpenBlaze8) gives the same cycle behaviour with both versions.
-- `pop_data_o` shows the top word before the clock edge that performs the pop; the next word appears after the edge.
-- With `OVERWRITE /= 0` and a full stack, a push keeps `nb_elt_r` at `DEPTH` and advances `ptr_last_r`, which wraps on the oldest word: the stack keeps the last `DEPTH` pushed words.
-- With `CYCLIC_PTR = true` (KCPSM3 compatibility, e.g. the OpenBlaze8 call stack), `pop = pop_ack_i and (pop_val_o or not push)`: a pop on an empty stack moves the pointer like a KCPSM3 `RETURN` (5-bit cyclic pointer for 32 words), the counter stays at 0 and `pop_val_o` stays 0. With `CYCLIC_PTR = false` (default) such a pop is ignored: the pointer is blocked and the next pop reads the same word again.
+![Push and pop handshakes](doc/stack-push-pop.svg)
 
-## Directory Structure
+- `pop_data_o` shows the top word before the clock edge of the pop; the word below appears after the edge.
+- Full stack with `OVERWRITE /= 0`: a push keeps `nb_elt_r` at `DEPTH` and moves `ptr_last_r` onto the oldest word, which is overwritten: the stack keeps the last `DEPTH` words pushed.
+- `CYCLIC_PTR = true`: a pop on an empty stack (without push) moves `ptr_last_r` back, `nb_elt_r` stays at 0 and `pop_val_o` at 0: the pointer is purely cyclic, the next pop shows the word below in the RAM. With `CYCLIC_PTR = false` such a pop is ignored.
 
+### Resets and clock enable
+
+- `arstn_i = 0` clears `nb_elt_r` and `ptr_last_r` at once, whatever `clk_i` and `cke_i`.
+- `srst_i = 1` clears them on the rising edge of `clk_i`, whatever `cke_i`, and wins over a push or a pop of the same cycle.
+- `cke_i = 0` freezes `nb_elt_r`, `ptr_last_r` and the RAM.
+- The RAM content is not reset. A push requested during a reset with `cke_i = 1` still writes the RAM (the word is not in the stack after the reset); it is only visible with `CYCLIC_PTR`, when pops on the empty stack read the RAM.
+
+## Registers
+
+This IP has no software-visible registers.
+
+## Programmer's Guide
+
+This IP has no software interface: it is driven by hardware through its push and pop handshakes.
+
+## Design Verification
+
+### Testbench
+
+| File | DUT | Description |
+|------|-----|-------------|
+| [sim/stack/tb_stack.vhd](sim/stack/tb_stack.vhd) | `stack` | Self-checking UVVM testbench, generics `TESTS_LIST` (scenarios, see below), `WIDTH`, `DEPTH`, `OVERWRITE`, `CYCLIC_PTR`. Every cycle, the inputs are driven on the falling edge of the clock and, a quarter period later, `pop_val_o`, `push_ack_o` and `pop_data_o` (when the stack is not empty) are compared with a reference model of the stack content |
+
+The cycle procedure, the reference model and the reset pulse are in [tb_stack_bfm_pkg](sim/stack/tb_stack_bfm_pkg.vhd); one package per scenario (`tb_stack_<name>_pkg`); names, applicability and dispatch in [tb_stack_tests_pkg](sim/stack/tb_stack_tests_pkg.vhd). The pushed words toggle every bit (`i`, inverted every other pair of words) and each scenario of a list pushes other words than the previous one: the RAM is not reset, a missing write can not read back an equal word.
+
+### Scenarios (`TESTS_LIST`)
+
+The scenarios are chosen at run time with the generic `TESTS_LIST`: names separated by `,` without space (`lifo,push_full,lifo`), a name may be repeated. The sequencer first checks every name (an unknown name, or `cyclic` with `CYCLIC_PTR = false`, is a `TB_ERROR` before any scenario runs), then for each scenario drives a reset pulse with the inputs idle, logs `TEST <i>/<N> : <name>` and runs it: each scenario starts from reset. The empty list (default) only compiles and elaborates the testbench. The list is parsed and its names checked with `list_length` / `list_item` / `list_contains` of `asylum.string_pkg` (`asylum:utils:pkg` >= 1.10.0).
+
+Checks counted as the `=> OK` lines of the log, reference configuration (`WIDTH = 10`, `DEPTH = 8`, `OVERWRITE = 1`, `CYCLIC_PTR = true`):
+
+| Name | Checks | Description |
+|------|--------|-------------|
+| `reset_values` | 4 | Outputs during the reset and after it: empty stack, push accepted |
+| `lifo` | 49 | Push up to full, then pop in LIFO order: `pop_data_o` is the last word pushed at every level |
+| `push_full` | 58 | `DEPTH+3` pushes on a full stack: refused with `OVERWRITE = 0` (content kept), accepted with `OVERWRITE /= 0` (the stack keeps the last `DEPTH` words) |
+| `push_pop` | 381 | Push and pop in the same cycle at every level 0 to `DEPTH` (reset before each level): top word replaced; push only on an empty stack; pop only on a full stack with `OVERWRITE = 0` |
+| `cke` | 70 | `cke_i = 0` freezes the stack: push, pop and push+pop ignored, half full and full |
+| `async_reset` | 88 | `arstn_i` on a full stack: empty (and push accepted) before the next clock edge and after it; also with `cke_i = 0` and a push+pop request; stack usable after it |
+| `random` | 3409 | 1200 cycles of random push, pop and `cke_i` in three phases (towards full, towards empty, balanced), own seeds; with `CYCLIC_PTR`, no pop on an empty stack |
+| `cyclic` | 128 | `CYCLIC_PTR` only: `DEPTH+1` pushes, `DEPTH+3` pops (3 on the empty stack), 2 pushes, 4 pops, against a circular model of the RAM; then `srst_i`, and later `arstn_i`, put the pointer back to 0: the pops on the empty stack read the RAM from its last word down |
+| `sync_reset` | 89 | `srst_i` on a full stack: stack kept until the clock edge, then empty even with `cke_i = 0`; `srst_i` wins over a push+pop request; stack usable after it |
+
+The other configurations run the whole list except `cyclic`: `sim_basic` 4143 checks, `sim_overwrite` 3734 checks.
+
+The testbench was validated with 30 mutants of [hdl/stack.vhd](hdl/stack.vhd) (flags, handshakes, counter and pointer updates, resets and clock enable priorities, RAM addresses, write enable and data bits, cyclic pointer), each scenario run alone in each configuration: every mutant is killed.
+
+### Targets
+
+| Target | Toplevel | Description |
+|--------|----------|-------------|
+| `default` | `stack` | HDL fileset (not a simulation) |
+| `sim_cyclic` | `tb_stack` | Reference configuration (`WIDTH = 10`, `DEPTH = 8`, `OVERWRITE = 1`, `CYCLIC_PTR = true`): build and elaboration only (`TESTS_LIST` empty), base of the scenario targets and of the list runs |
+| `sim_cyclic_<name>` | `tb_stack` | One target per scenario: `sim_cyclic_reset_values`, `_lifo`, `_push_full`, `_push_pop`, `_cke`, `_async_reset`, `_random`, `_cyclic`, `_sync_reset` (4276 checks in all) |
+| `sim_basic` | `tb_stack` | `WIDTH = 8`, `DEPTH = 8`, `OVERWRITE = 0`: every scenario except `cyclic` (4143 checks) |
+| `sim_overwrite` | `tb_stack` | `WIDTH = 16`, `DEPTH = 4`, `OVERWRITE = 1`: every scenario except `cyclic` (3734 checks) |
+| `lint_ghdl` | `asylum.stack` | GHDL `-Wall` analysis and elaboration |
+| `lint_ghdl_synth_<config>` | `asylum.stack` | `ghdl --synth` check (no latch, synthesizable) with the generics of the configuration: `default`, `8x8b`, `4x16b_overwrite`, `openblaze8`, `cyclic` (see [Resources](#resources)) |
+| `syn_<config>` | `asylum.stack` | Synthesis with Yosys, Artix-7 and sky130 (see [Resources](#resources)), same configurations as `lint_ghdl_synth_*` |
+
+The reference configuration has a build-only base target and one target per scenario: one CI job per scenario, a failure is isolated. The other configurations have one target that runs their whole list: the `TEST <i>/<N>` header names a failing scenario. FuseSoC replaces the `parameters` list of an inherited target, so each target repeats the generics of its configuration.
+
+Every `sim_*`, `lint_*` and `syn_*` target is a job of the [GitHub CI](https://github.com/deuskane/asylum-component-stack/actions/workflows/ci.yml), run in the [asylum-env](https://github.com/deuskane/asylum-ci) image (GHDL, FuseSoC, UVVM, Yosys). The `sim`, `lint` and `syn` badges count the passed and failed targets of the last run on `main`.
+
+### How to Run
+
+From a clone of [asylum-project](https://github.com/deuskane/asylum-project) (GHDL and FuseSoC installed, or in the asylum-env image):
+
+```bash
+make help                        # variables, rules and targets
+make sim_cyclic_push_pop         # one scenario, log in log/
+make sim_basic                   # every scenario of a configuration
+make nonreg_sim                  # every sim_* target
+make nonreg_lint                 # every lint_* target
+make nonreg_syn                  # every syn_* target (Yosys, figures of Resources)
+make TARGETS_FILTER=^sim_cyclic nonreg_sim
 ```
-asylum-component-stack/
-├── stack.core              # FuseSoC core (asylum:component:stack)
-├── Makefile                # Common Asylum Makefile (FuseSoC wrapper)
-├── mk/
-│   ├── defs.mk             # FILE_CORE, default TARGET and TOOL
-│   └── targets.txt         # Target list (generated from the .core)
-├── doc/
-│   └── stack.drawio        # Block diagram
-├── hdl/
-│   ├── stack_pkg.vhd
-│   └── stack.vhd
-├── sim/
-│   └── tb_stack.vhd        # UVVM testbench
-└── .github/workflows/ci.yml  # CI (sim_basic, sim_overwrite)
+
+To run a list of scenarios, build the testbench once, then run the list without recompiling, either with FuseSoC (same `--build-root` and `--no-export` as the Makefile, so that the build of the target is reused; any generic of the target can be overridden after the VLNV):
+
+```bash
+make sim_cyclic                  # build and elaboration (TESTS_LIST empty)
+fusesoc --cores-root . run --build-root build --no-export --run --target sim_cyclic asylum:component:stack:1.2.0 --TESTS_LIST=lifo,cyclic,lifo
 ```
 
-## Dependencies
+or in the build directory of the target. `EXTRA_OPTIONS` replaces every generic set by the target: repeat the generics of the configuration, else their default values apply:
 
-| Core | Used by (fileset) | Purpose |
-|------|-------------------|---------|
-| `>=asylum:component:ram:1.0.0` | `files_hdl` | `ram_1r1w` storage (`ram_pkg`); also brings `asylum:utils:pkg` (`math_pkg`: `log2`) used by `stack` |
-| `bitvis:verification:uvvm` | `files_sim` | UVVM utility library (testbench) |
-| `asylum:utils:ghdl_synth` | `syn` | `ghdl_synth.sh` / `ghdl_synth.mk` (`pre_run` hook of `lint_ghdl_synth_*`) |
+```bash
+cd build/asylum_component_stack_1.2.0/sim_cyclic-ghdl
+make run EXTRA_OPTIONS="-gTESTS_LIST=lifo,cyclic -gWIDTH=10 -gDEPTH=8 -gOVERWRITE=1 -gCYCLIC_PTR=true"
+```
+
+To add a scenario: a `tb_stack_<name>_pkg` package with a `run` procedure in the `files_sim` fileset, its name in `C_TESTS` and its case in `run_test` of `tb_stack_tests_pkg`, a `sim_cyclic_<name>` target and the name in the `TESTS_LIST` of the other configurations in [stack.core](stack.core), then `make mk/targets.txt` and `make ci_generate`.
+
+Outside the CI, GHDL writes a waveform `dut.fst`.
+
+## Dependencies and Related IPs
+
+| Core | Repository | Purpose |
+|------|------------|---------|
+| `asylum:component:ram` (>= 1.0.0) | [asylum-component-ram](https://github.com/deuskane/asylum-component-ram) | `ram_1r1w` storage (`ram_pkg`) |
+| `asylum:utils:pkg` | [asylum-utils-pkg](https://github.com/deuskane/asylum-utils-pkg) | `math_pkg` (`log2`), through `asylum:component:ram`; the testbench needs >= 1.10.0 (`string_pkg` lists of `TESTS_LIST`) |
+| `asylum:utils:ghdl_synth` | [asylum-utils-generators](https://github.com/deuskane/asylum-utils-generators) | `ghdl --synth` check of the `lint_ghdl_synth_*` targets |
+| `asylum:utils:yosys_synth` | [asylum-utils-generators](https://github.com/deuskane/asylum-utils-generators) | Yosys synthesis of the `syn_*` targets (Artix-7 and sky130) |
+| `bitvis:verification:uvvm` | [UVVM](https://github.com/UVVM/UVVM) | Verification library |
+
+First in, first out counterpart: [asylum-component-fifo](https://github.com/deuskane/asylum-component-fifo). All the IPs: [asylum-project](https://github.com/deuskane/asylum-project).
+
+## License
+
+Apache License 2.0, see [LICENSE](LICENSE).
