@@ -139,10 +139,10 @@ targets:
       - OVERWRITE=1
 
   #---------------------------------------
-  lint_ghdl_synth_openblaze8 :
+  lint_ghdl_synth_32x10b :
   #---------------------------------------
     << : *lint_ghdl_synth
-    description     : Synthesis check of stack, call stack of OpenBlaze8
+    description     : Synthesis check of stack, 32x10 bits, overwrite
     parameters      :
       - WIDTH=10
       - DEPTH=32
@@ -152,7 +152,7 @@ targets:
   lint_ghdl_synth_cyclic :
   #---------------------------------------
     << : *lint_ghdl_synth
-    description     : Synthesis check of stack, call stack of OpenBlaze8 with a cyclic pointer (KCPSM3)
+    description     : Synthesis check of stack, 32x10 bits, overwrite, cyclic pointer
     parameters      :
       - WIDTH=10
       - DEPTH=32
@@ -196,10 +196,10 @@ targets:
       - OVERWRITE=1
 
   #---------------------------------------
-  syn_openblaze8 :
+  syn_32x10b :
   #---------------------------------------
     << : *syn
-    description     : Synthesis (Artix-7, sky130) of stack, call stack of OpenBlaze8
+    description     : Synthesis (Artix-7, sky130) of stack, 32x10 bits, overwrite
     parameters      :
       - WIDTH=10
       - DEPTH=32
@@ -209,7 +209,7 @@ targets:
   syn_cyclic :
   #---------------------------------------
     << : *syn
-    description     : Synthesis (Artix-7, sky130) of stack, call stack of OpenBlaze8 with a cyclic pointer (KCPSM3)
+    description     : Synthesis (Artix-7, sky130) of stack, 32x10 bits, overwrite, cyclic pointer
     parameters      :
       - WIDTH=10
       - DEPTH=32
@@ -421,7 +421,7 @@ parameters :
     paramtype   : generic
 
   CYCLIC_PTR :
-    description : Purely cyclic pointer, a pop on an empty stack moves the pointer (KCPSM3)
+    description : Purely cyclic pointer, a pop on an empty stack moves the pointer
     datatype    : bool
     default     : false
     paramtype   : generic

@@ -160,7 +160,7 @@ Figures of the `syn_*` targets (`make nonreg_syn`, see [Targets](#targets)): `st
 | `syn_default` (4 x 32 bits) | 26 | 24 | 5 | 1 | 6 | 0 | 0 | 5079.87 | 1.353 |
 | `syn_8x8b` (8 x 8 bits) | 30 | 8 | 7 | 3 | 0 | 0 | 0 | 2914.04 | 0.776 |
 | `syn_4x16b_overwrite` (4 x 16 bits, `OVERWRITE = 1`) | 28 | 12 | 5 | 1 | 6 | 0 | 0 | 2712.60 | 0.723 |
-| `syn_openblaze8` (32 x 10 bits, `OVERWRITE = 1`) | 44 | 8 | 11 | 6 | 1 | 0 | 0 | 12948.67 | 3.450 |
+| `syn_32x10b` (32 x 10 bits, `OVERWRITE = 1`) | 44 | 8 | 11 | 6 | 1 | 0 | 0 | 12948.67 | 3.450 |
 | `syn_cyclic` (32 x 10 bits, `OVERWRITE = 1`, `CYCLIC_PTR = true`) | 44 | 8 | 11 | 6 | 3 | 0 | 0 | 12976.20 | 3.457 |
 
 ¹ Xilinx Artix-7 (LUT6), Yosys 0.33 `synth_xilinx -flatten -noiopad -noclkbuf`, before place and route: every cell of the netlist is counted, Vivado may differ. An `INV` counts as a `LUT1`: `synth_xilinx` puts one on the reset pin of each flip-flop with the active-low reset (8 of the 26 LUTs of `syn_default`, 12 of 30 for `syn_8x8b`, 8 of 28 for `syn_4x16b_overwrite`, 18 of 44 for the two 32-word configurations). The words are in distributed RAM (`RAM32M`, 4 LUTRAM each): the RAM has an asynchronous read, which a block RAM does not have, so there is never a BRAM. Flip-flops: the level counter (`log2(DEPTH)+1` bits) and the pointer (`log2(DEPTH)` bits) only.
@@ -259,7 +259,7 @@ The testbench was validated with 30 mutants of [hdl/stack.vhd](hdl/stack.vhd) (f
 | `sim_basic` | `tb_stack` | `WIDTH = 8`, `DEPTH = 8`, `OVERWRITE = 0`: every scenario except `cyclic` (4143 checks) |
 | `sim_overwrite` | `tb_stack` | `WIDTH = 16`, `DEPTH = 4`, `OVERWRITE = 1`: every scenario except `cyclic` (3734 checks) |
 | `lint_ghdl` | `asylum.stack` | GHDL `-Wall` analysis and elaboration |
-| `lint_ghdl_synth_<config>` | `asylum.stack` | `ghdl --synth` check (no latch, synthesizable) with the generics of the configuration: `default`, `8x8b`, `4x16b_overwrite`, `openblaze8`, `cyclic` (see [Resources](#resources)) |
+| `lint_ghdl_synth_<config>` | `asylum.stack` | `ghdl --synth` check (no latch, synthesizable) with the generics of the configuration: `default`, `8x8b`, `4x16b_overwrite`, `32x10b`, `cyclic` (see [Resources](#resources)) |
 | `syn_<config>` | `asylum.stack` | Synthesis with Yosys, Artix-7 and sky130 (see [Resources](#resources)), same configurations as `lint_ghdl_synth_*` |
 
 The reference configuration has a build-only base target and one target per scenario: one CI job per scenario, a failure is isolated. The other configurations have one target that runs their whole list: the `TEST <i>/<N>` header names a failing scenario. FuseSoC replaces the `parameters` list of an inherited target, so each target repeats the generics of its configuration.

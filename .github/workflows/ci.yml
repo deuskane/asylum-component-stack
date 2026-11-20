@@ -72,6 +72,11 @@ jobs:
     with:
       name: lint_ghdl
 
+  lint_ghdl_synth_32x10b:
+    uses: deuskane/asylum-ci/.github/workflows/vhdl-ci.yml@main
+    with:
+      name: lint_ghdl_synth_32x10b
+
   lint_ghdl_synth_4x16b_overwrite:
     uses: deuskane/asylum-ci/.github/workflows/vhdl-ci.yml@main
     with:
@@ -92,10 +97,10 @@ jobs:
     with:
       name: lint_ghdl_synth_default
 
-  lint_ghdl_synth_openblaze8:
+  syn_32x10b:
     uses: deuskane/asylum-ci/.github/workflows/vhdl-ci.yml@main
     with:
-      name: lint_ghdl_synth_openblaze8
+      name: syn_32x10b
 
   syn_4x16b_overwrite:
     uses: deuskane/asylum-ci/.github/workflows/vhdl-ci.yml@main
@@ -117,13 +122,8 @@ jobs:
     with:
       name: syn_default
 
-  syn_openblaze8:
-    uses: deuskane/asylum-ci/.github/workflows/vhdl-ci.yml@main
-    with:
-      name: syn_openblaze8
-
   badges:
-    needs: [sim_basic, sim_cyclic, sim_cyclic_async_reset, sim_cyclic_cke, sim_cyclic_cyclic, sim_cyclic_lifo, sim_cyclic_push_full, sim_cyclic_push_pop, sim_cyclic_random, sim_cyclic_reset_values, sim_cyclic_sync_reset, sim_overwrite, lint_ghdl, lint_ghdl_synth_4x16b_overwrite, lint_ghdl_synth_8x8b, lint_ghdl_synth_cyclic, lint_ghdl_synth_default, lint_ghdl_synth_openblaze8, syn_4x16b_overwrite, syn_8x8b, syn_cyclic, syn_default, syn_openblaze8]
+    needs: [sim_basic, sim_cyclic, sim_cyclic_async_reset, sim_cyclic_cke, sim_cyclic_cyclic, sim_cyclic_lifo, sim_cyclic_push_full, sim_cyclic_push_pop, sim_cyclic_random, sim_cyclic_reset_values, sim_cyclic_sync_reset, sim_overwrite, lint_ghdl, lint_ghdl_synth_32x10b, lint_ghdl_synth_4x16b_overwrite, lint_ghdl_synth_8x8b, lint_ghdl_synth_cyclic, lint_ghdl_synth_default, syn_32x10b, syn_4x16b_overwrite, syn_8x8b, syn_cyclic, syn_default]
     if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
       contents: write

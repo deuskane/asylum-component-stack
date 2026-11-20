@@ -1,10 +1,10 @@
 default                         : Default Target
 lint_ghdl                       : Lint with GHDL (-Wall analysis and elaboration of stack)
+lint_ghdl_synth_32x10b          : Synthesis check of stack, 32x10 bits, overwrite
 lint_ghdl_synth_4x16b_overwrite : Synthesis check of stack, 4x16 bits, overwrite
 lint_ghdl_synth_8x8b            : Synthesis check of stack, 8x8 bits
-lint_ghdl_synth_cyclic          : Synthesis check of stack, call stack of OpenBlaze8 with a cyclic pointer (KCPSM3)
+lint_ghdl_synth_cyclic          : Synthesis check of stack, 32x10 bits, overwrite, cyclic pointer
 lint_ghdl_synth_default         : Synthesis check of stack, default generics
-lint_ghdl_synth_openblaze8      : Synthesis check of stack, call stack of OpenBlaze8
 sim_basic                       : Simulation of stack (UVVM), OVERWRITE = 0 - every scenario (cyclic excepted)
 sim_cyclic                      : Simulation of stack (UVVM), OVERWRITE = 1, CYCLIC_PTR = true - build only (scenarios of TESTS_LIST)
 sim_cyclic_async_reset          : Simulation of stack (UVVM), OVERWRITE = 1, CYCLIC_PTR = true - asynchronous reset arstn_i
@@ -17,9 +17,9 @@ sim_cyclic_random               : Simulation of stack (UVVM), OVERWRITE = 1, CYC
 sim_cyclic_reset_values         : Simulation of stack (UVVM), OVERWRITE = 1, CYCLIC_PTR = true - outputs during and after the reset
 sim_cyclic_sync_reset           : Simulation of stack (UVVM), OVERWRITE = 1, CYCLIC_PTR = true - synchronous reset srst_i
 sim_overwrite                   : Simulation of stack (UVVM), OVERWRITE = 1 - every scenario (cyclic excepted)
+syn_32x10b                      : Synthesis (Artix-7, sky130) of stack, 32x10 bits, overwrite
 syn_4x16b_overwrite             : Synthesis (Artix-7, sky130) of stack, 4x16 bits, overwrite
 syn_8x8b                        : Synthesis (Artix-7, sky130) of stack, 8x8 bits
-syn_cyclic                      : Synthesis (Artix-7, sky130) of stack, call stack of OpenBlaze8 with a cyclic pointer (KCPSM3)
+syn_cyclic                      : Synthesis (Artix-7, sky130) of stack, 32x10 bits, overwrite, cyclic pointer
 syn_default                     : Synthesis (Artix-7, sky130) of stack, default generics
-syn_openblaze8                  : Synthesis (Artix-7, sky130) of stack, call stack of OpenBlaze8
 
