@@ -44,10 +44,23 @@ filesets:
   #---------------------------------------
   files_sim:
     files:
-      - sim/tb_stack.vhd
+      - sim/stack/tb_stack_bfm_pkg.vhd
+      - sim/stack/tb_stack_reset_values_pkg.vhd
+      - sim/stack/tb_stack_lifo_pkg.vhd
+      - sim/stack/tb_stack_push_full_pkg.vhd
+      - sim/stack/tb_stack_push_pop_pkg.vhd
+      - sim/stack/tb_stack_cke_pkg.vhd
+      - sim/stack/tb_stack_async_reset_pkg.vhd
+      - sim/stack/tb_stack_random_pkg.vhd
+      - sim/stack/tb_stack_cyclic_pkg.vhd
+      - sim/stack/tb_stack_sync_reset_pkg.vhd
+      - sim/stack/tb_stack_tests_pkg.vhd
+      - sim/stack/tb_stack.vhd
     file_type : vhdlSource-2008
     depend    :
       - bitvis:verification:uvvm
+      # string_pkg list_length / list_item / list_contains (TESTS_LIST)
+      - ">=asylum:utils:pkg:1.10.0"
 
   #---------------------------------------
   # Lint / synthesis check : ghdl_synth.sh / ghdl_synth.mk (pre_run
@@ -138,45 +151,24 @@ targets:
       - OVERWRITE=1
       - CYCLIC_PTR=true
 
-  sim_basic:
+  #---------------------------------------
+  # tb_stack : compiled once per configuration (WIDTH, DEPTH, OVERWRITE,
+  # CYCLIC_PTR), scenarios chosen at run time (TESTS_LIST, empty : build
+  # and elaboration only).
+  # Reference configuration : cyclic pointer (every scenario applies) :
+  # sim_cyclic (build only) and one sim_cyclic_<test> target per
+  # scenario ; sim_basic and sim_overwrite run the whole list (cyclic
+  # excepted). Each target repeats the generics of its configuration :
+  # FuseSoC replaces the parameters list of an inherited target.
+  #---------------------------------------
+  sim_cyclic: &sim_cyclic
     << : *default
-    description     : Simulation of all cases (OVERWRITE = 0)
+    description     : Simulation of stack (UVVM), OVERWRITE = 1, CYCLIC_PTR = true - build only (scenarios of TESTS_LIST)
     filesets_append :
       - files_sim
     toplevel        : tb_stack
     parameters      :
-      - WIDTH=8
-      - DEPTH=8
-      - OVERWRITE=0
-    default_tool    : ghdl
-    tools :
-      ghdl :
-        analyze_options : ["-Wall","-fsynopsys","-frelaxed","--no-vital-checks"]
-        run_options     : ["--fst=dut.fst","--ieee-asserts=disable"]
-
-  sim_overwrite:
-    << : *default
-    description     : Simulation of all cases (OVERWRITE = 1)
-    filesets_append :
-      - files_sim
-    toplevel        : tb_stack
-    parameters      :
-      - WIDTH=16
-      - DEPTH=4
-      - OVERWRITE=1
-    default_tool    : ghdl
-    tools :
-      ghdl :
-        analyze_options : ["-Wall","-fsynopsys","-frelaxed","--no-vital-checks"]
-        run_options     : ["--fst=dut.fst","--ieee-asserts=disable"]
-
-  sim_cyclic:
-    << : *default
-    description     : Simulation of all cases (OVERWRITE = 1, CYCLIC_PTR = true)
-    filesets_append :
-      - files_sim
-    toplevel        : tb_stack
-    parameters      :
+      - TESTS_LIST
       - WIDTH=10
       - DEPTH=8
       - OVERWRITE=1
@@ -184,8 +176,145 @@ targets:
     default_tool    : ghdl
     tools :
       ghdl :
-        analyze_options : ["-Wall","-fsynopsys","-frelaxed","--no-vital-checks"]
-        run_options     : ["--fst=dut.fst","--ieee-asserts=disable"]
+        analyze_options :
+          - "$(GHDL_ANALYZE_OPTION)"
+          - "-Wall"
+          - "-frelaxed"
+        run_options     :
+          - "$(GHDL_RUN_OPTION)"
+          - "--ieee-asserts=disable"
+
+  #---------------------------------------
+  sim_cyclic_reset_values:
+  #---------------------------------------
+    << : *sim_cyclic
+    description     : Simulation of stack (UVVM), OVERWRITE = 1, CYCLIC_PTR = true - outputs during and after the reset
+    parameters      :
+      - TESTS_LIST=reset_values
+      - WIDTH=10
+      - DEPTH=8
+      - OVERWRITE=1
+      - CYCLIC_PTR=true
+
+  #---------------------------------------
+  sim_cyclic_lifo:
+  #---------------------------------------
+    << : *sim_cyclic
+    description     : Simulation of stack (UVVM), OVERWRITE = 1, CYCLIC_PTR = true - push up to full, pop in LIFO order
+    parameters      :
+      - TESTS_LIST=lifo
+      - WIDTH=10
+      - DEPTH=8
+      - OVERWRITE=1
+      - CYCLIC_PTR=true
+
+  #---------------------------------------
+  sim_cyclic_push_full:
+  #---------------------------------------
+    << : *sim_cyclic
+    description     : Simulation of stack (UVVM), OVERWRITE = 1, CYCLIC_PTR = true - push on a full stack (overwrite of the oldest word)
+    parameters      :
+      - TESTS_LIST=push_full
+      - WIDTH=10
+      - DEPTH=8
+      - OVERWRITE=1
+      - CYCLIC_PTR=true
+
+  #---------------------------------------
+  sim_cyclic_push_pop:
+  #---------------------------------------
+    << : *sim_cyclic
+    description     : Simulation of stack (UVVM), OVERWRITE = 1, CYCLIC_PTR = true - simultaneous push and pop at every level
+    parameters      :
+      - TESTS_LIST=push_pop
+      - WIDTH=10
+      - DEPTH=8
+      - OVERWRITE=1
+      - CYCLIC_PTR=true
+
+  #---------------------------------------
+  sim_cyclic_cke:
+  #---------------------------------------
+    << : *sim_cyclic
+    description     : Simulation of stack (UVVM), OVERWRITE = 1, CYCLIC_PTR = true - cke_i = 0 freezes the stack
+    parameters      :
+      - TESTS_LIST=cke
+      - WIDTH=10
+      - DEPTH=8
+      - OVERWRITE=1
+      - CYCLIC_PTR=true
+
+  #---------------------------------------
+  sim_cyclic_async_reset:
+  #---------------------------------------
+    << : *sim_cyclic
+    description     : Simulation of stack (UVVM), OVERWRITE = 1, CYCLIC_PTR = true - asynchronous reset arstn_i
+    parameters      :
+      - TESTS_LIST=async_reset
+      - WIDTH=10
+      - DEPTH=8
+      - OVERWRITE=1
+      - CYCLIC_PTR=true
+
+  #---------------------------------------
+  sim_cyclic_random:
+  #---------------------------------------
+    << : *sim_cyclic
+    description     : Simulation of stack (UVVM), OVERWRITE = 1, CYCLIC_PTR = true - 1200 cycles of random push, pop and cke_i
+    parameters      :
+      - TESTS_LIST=random
+      - WIDTH=10
+      - DEPTH=8
+      - OVERWRITE=1
+      - CYCLIC_PTR=true
+
+  #---------------------------------------
+  sim_cyclic_cyclic:
+  #---------------------------------------
+    << : *sim_cyclic
+    description     : Simulation of stack (UVVM), OVERWRITE = 1, CYCLIC_PTR = true - cyclic pointer, pop on an empty stack, pointer reset
+    parameters      :
+      - TESTS_LIST=cyclic
+      - WIDTH=10
+      - DEPTH=8
+      - OVERWRITE=1
+      - CYCLIC_PTR=true
+
+  #---------------------------------------
+  sim_cyclic_sync_reset:
+  #---------------------------------------
+    << : *sim_cyclic
+    description     : Simulation of stack (UVVM), OVERWRITE = 1, CYCLIC_PTR = true - synchronous reset srst_i
+    parameters      :
+      - TESTS_LIST=sync_reset
+      - WIDTH=10
+      - DEPTH=8
+      - OVERWRITE=1
+      - CYCLIC_PTR=true
+
+  #---------------------------------------
+  sim_basic:
+  #---------------------------------------
+    << : *sim_cyclic
+    description     : Simulation of stack (UVVM), OVERWRITE = 0 - every scenario (cyclic excepted)
+    parameters      :
+      - TESTS_LIST=reset_values,lifo,push_full,push_pop,cke,async_reset,random,sync_reset
+      - WIDTH=8
+      - DEPTH=8
+      - OVERWRITE=0
+      - CYCLIC_PTR=false
+
+  #---------------------------------------
+  sim_overwrite:
+  #---------------------------------------
+    << : *sim_cyclic
+    description     : Simulation of stack (UVVM), OVERWRITE = 1 - every scenario (cyclic excepted)
+    parameters      :
+      - TESTS_LIST=reset_values,lifo,push_full,push_pop,cke,async_reset,random,sync_reset
+      - WIDTH=16
+      - DEPTH=4
+      - OVERWRITE=1
+      - CYCLIC_PTR=false
 
 scripts:
 
@@ -196,6 +325,11 @@ scripts:
     cmd : [bash, ghdl_synth.sh]
 
 parameters :
+
+  TESTS_LIST :
+    description : Scenarios of tb_stack, separated by ',' (empty, build only)
+    datatype    : str
+    paramtype   : generic
 
   WIDTH :
     description : Word width
