@@ -1,0 +1,15 @@
+{ "signal": [
+  { "name": "clk_i",       "wave": "p......." },
+  { "name": "push_val_i",  "wave": "01..010." },
+  { "name": "push_data_i", "wave": "x345x6x.", "data": ["A", "B", "C", "D"] },
+  { "name": "push_ack_o",  "wave": "1..0.1.." },
+  {},
+  { "name": "pop_ack_i",   "wave": "0...1..0" },
+  { "name": "pop_val_o",   "wave": "0.1....0" },
+  { "name": "pop_data_o",  "wave": "x.34.36x", "data": ["A", "B", "A", "D"] },
+  {},
+  { "name": "nb_elt_r",    "wave": "=.==.=.=", "data": ["0", "1", "2", "1", "0"] }
+  ],
+  "head": { "text": "DEPTH = 2, OVERWRITE = 0 : push A, B, C (refused, full), pop, push D + pop (top replaced), pop", "tick": 0 },
+  "config": { "hscale": 2 }
+}
