@@ -157,13 +157,13 @@ Figures of the `syn_*` targets (`make nonreg_syn`, see [Targets](#targets)): `st
 
 | Configuration | LUT¹ | LUTRAM¹ | FF¹ | CARRY4¹ | MUXF7/F8¹ | BRAM¹ | DSP¹ | Area² (µm²) | kGE³ |
 |---|---|---|---|---|---|---|---|---|---|
-| `syn_default` (4 x 32 bits) | 26 | 24 | 5 | 1 | 6 | 0 | 0 | 5079.87 | 1.353 |
-| `syn_8x8b` (8 x 8 bits) | 30 | 8 | 7 | 3 | 0 | 0 | 0 | 2914.04 | 0.776 |
-| `syn_4x16b_overwrite` (4 x 16 bits, `OVERWRITE = 1`) | 28 | 12 | 5 | 1 | 6 | 0 | 0 | 2712.60 | 0.723 |
-| `syn_32x10b` (32 x 10 bits, `OVERWRITE = 1`) | 44 | 8 | 11 | 6 | 1 | 0 | 0 | 12948.67 | 3.450 |
-| `syn_cyclic` (32 x 10 bits, `OVERWRITE = 1`, `CYCLIC_PTR = true`) | 44 | 8 | 11 | 6 | 3 | 0 | 0 | 12976.20 | 3.457 |
+| `syn_default` (4 x 32 bits) | 22 | 24 | 5 | 1 | 6 | 0 | 0 | 5079.87 | 1.353 |
+| `syn_8x8b` (8 x 8 bits) | 24 | 8 | 7 | 3 | 0 | 0 | 0 | 2914.04 | 0.776 |
+| `syn_4x16b_overwrite` (4 x 16 bits, `OVERWRITE = 1`) | 23 | 12 | 5 | 1 | 6 | 0 | 0 | 2712.60 | 0.723 |
+| `syn_32x10b` (32 x 10 bits, `OVERWRITE = 1`) | 34 | 8 | 11 | 6 | 1 | 0 | 0 | 12948.67 | 3.450 |
+| `syn_cyclic` (32 x 10 bits, `OVERWRITE = 1`, `CYCLIC_PTR = true`) | 33 | 8 | 11 | 6 | 3 | 0 | 0 | 12976.20 | 3.457 |
 
-¹ Xilinx Artix-7 (LUT6), Yosys 0.33 `synth_xilinx -flatten -noiopad -noclkbuf`, before place and route: every cell of the netlist is counted, Vivado may differ. An `INV` counts as a `LUT1`: `synth_xilinx` puts one on the reset pin of each flip-flop with the active-low reset (8 of the 26 LUTs of `syn_default`, 12 of 30 for `syn_8x8b`, 8 of 28 for `syn_4x16b_overwrite`, 18 of 44 for the two 32-word configurations). The words are in distributed RAM (`RAM32M`, 4 LUTRAM each): the RAM has an asynchronous read, which a block RAM does not have, so there is never a BRAM. Flip-flops: the level counter (`log2(DEPTH)+1` bits) and the pointer (`log2(DEPTH)` bits) only.
+¹ Xilinx Artix-7 (LUT6), Yosys 0.33 `synth_xilinx -flatten -noiopad -noclkbuf`, before place and route: every cell of the netlist is counted, Vivado may differ. Identical cells are merged as a vendor tool does (`opt_merge -share_all`): the inverters of an active-low reset net become one; every remaining cell is counted, an `INV` as a `LUT1` (4 of the 22 LUTs of `syn_default`, 6 of 24 for `syn_8x8b`, 4 of 23 for `syn_4x16b_overwrite`, 8 of 34 for `syn_32x10b`, 8 of 33 for `syn_cyclic`). The words are in distributed RAM (`RAM32M`, 4 LUTRAM each): the RAM has an asynchronous read, which a block RAM does not have, so there is never a BRAM. Flip-flops: the level counter (`log2(DEPTH)+1` bits) and the pointer (`log2(DEPTH)` bits) only.
 
 ² SkyWater sky130 `sky130_fd_sc_hd`, typical corner (tt, 25 °C, 1.80 V), Yosys 0.33 `synth` + `dfflibmap` + `abc -liberty`: standard-cell area only, no timing constraint, no buffering, clock tree or placement. There is no SRAM macro: the `WIDTH x DEPTH` bits of the RAM become flip-flops and most of the area.
 
